@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<SavedPaths xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <keys>
+    <string>sourcePath</string>
+    <string>outputPath</string>
+  </keys>
+  <values>
+    <string>C:\Program Files (x86)\Steam\steamapps\common\Subnautica\SNUnmanagedData\Build18\CompiledOctreesCache</string>
+    <string>C:\Users\komet\Desktop</string>
+  </values>
+</SavedPaths>
