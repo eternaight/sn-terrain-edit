@@ -22,11 +22,6 @@ public class Globals : MonoBehaviour {
         GenerateColorMap();
     }
 
-    void OnValidate() {
-        get = this;
-        GenerateColorMap();
-    }
-
     public static Color ColorFromType(int type) {
 
         Random.InitState(type);

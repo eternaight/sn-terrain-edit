@@ -93,6 +93,7 @@ public static class OctreeRaycasting
         return HitNormalOfACube(ray, boxStart, boxEnd, out hitPoint);
     }
 
+    // TODO: fix hack
     public static Vector3 NormalOfRayToBox(Ray ray, Vector3 boxMin, Vector3 boxMax) {
         GameObject box = new GameObject();
         box.transform.position = (boxMin + boxMax) / 2;

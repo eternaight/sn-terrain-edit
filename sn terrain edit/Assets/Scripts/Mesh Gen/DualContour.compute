@@ -1,5 +1,5 @@
 ﻿#pragma kernel DualContour
-#include "MarchTables.compute"
+#include "DualTables.compute"
 
 static const int numthreads = 1;
 

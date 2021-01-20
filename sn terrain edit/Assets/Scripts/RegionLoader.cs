@@ -8,12 +8,9 @@ public class RegionLoader : MonoBehaviour
     public static RegionLoader loader;
     public float loadPercent; 
 
-    public bool specialLoad = false;
-
     public const int octreeSize = 32;
     public Vector3Int start;
     public Vector3Int end;
-    int currBatch;
     public bool doNextBatch = false;
 
     public Batch[] loadedBatches;
@@ -25,8 +22,6 @@ public class RegionLoader : MonoBehaviour
         loader = this;
     }
 
-    void Start() {
-    }
     public void LoadRegion(Vector3Int start, Vector3Int end) {
         
         if (loadPercent != 0) {
@@ -58,7 +53,7 @@ public class RegionLoader : MonoBehaviour
         GameObject batchObj = new GameObject($"batch-{coords.x}-{coords.y}-{coords.z}");
         Batch newBatch = batchObj.AddComponent<Batch>();
         loadedBatches[GetLabel(coords)] = newBatch;
-        newBatch.OnBatchDone += PushQueue;
+        newBatch.OnBatchConstructed += PushQueue;
 
         newBatch.batchIndex = coords;
 

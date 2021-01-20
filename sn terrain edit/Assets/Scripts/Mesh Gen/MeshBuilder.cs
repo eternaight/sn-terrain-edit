@@ -62,6 +62,8 @@ public class MeshBuilder : MonoBehaviour
 
     public List<Mesh> MeshFromPoints(float[] density, Vector3Int size, Vector3 offset, int[] pointTypes = null) {
 
+        // Setting data inside shader
+
         CreateBuffers(size);
 
         int numThreads = Mathf.CeilToInt ((size.x) / (float) Globals.threadGroupSize);
@@ -86,15 +88,18 @@ public class MeshBuilder : MonoBehaviour
         
         shader.Dispatch (0, numThreads, numThreads, numThreads);
 
+        // Retrieving data from sahder
+
         ComputeBuffer.CopyCount (triBuffer, triCountBuffer, 0);
         int[] triCountArray = new int[1];
         triCountBuffer.GetData (triCountArray);
         int numTris = triCountArray[0];
 
-        // Get triangle data from shader
         Triangle[] tris = new Triangle[numTris];
 
         triBuffer.GetData (tris, 0, 0, numTris);
+
+        // Segmenting geometry into separate meshes (to overcome vertex limit)
         
         List<Mesh> meshes = new List<Mesh>();
 

@@ -11,26 +11,25 @@ public class BatchReadWriter : MonoBehaviour
     [Range(0, 7)]
     public int maxRecursionDepth = 3;
 
-    int countOctrees;
     public bool busy = false;
 
-    Batch batch;
+    Batch _batch;
 
     void Awake() {
         readWriter = this;
     }
 
-    public void ReadBatch(Batch nwbatch) {
-        batch = nwbatch;
-        batchIndex = batch.batchIndex;
+    public void ReadBatch(Batch newbatch) {
+        _batch = newbatch;
+        batchIndex = _batch.batchIndex;
         
         if (!busy)
             StartCoroutine(DoReadBatch());
     }
 
-    public void DoMatGalleryBatch(Batch nwbatch) {
-        batch = nwbatch;
-        batchIndex = batch.batchIndex;
+    public void DoMatGalleryBatch(Batch newbatch) {
+        _batch = newbatch;
+        batchIndex = _batch.batchIndex;
         
         GenerateMaterialGallery();
     }
@@ -42,7 +41,7 @@ public class BatchReadWriter : MonoBehaviour
         Debug.Log("Reading "+ batchname);
 
         Octree[,,] octrees = new Octree[5, 5, 5];
-        countOctrees = 0;
+        int countOctrees = 0;
 
         bool batchdataExists = File.Exists(Globals.get.batchSourcePath + batchname);
         byte batchLabel = RegionLoader.loader.GetLabel(batchIndex);
@@ -82,7 +81,7 @@ public class BatchReadWriter : MonoBehaviour
                     nodesOfThisOctree[i] = (new OctNodeData((byte)type, (byte)signedDist, (ushort)childIndex));
                 }
 
-                Octree octree = new Octree(x, y, z, RegionLoader.octreeSize, batch.transform.position);
+                Octree octree = new Octree(x, y, z, RegionLoader.octreeSize, _batch.transform.position);
                 octree.Write(nodesOfThisOctree);
                 octrees[z, y, x] = octree;
 
@@ -91,18 +90,18 @@ public class BatchReadWriter : MonoBehaviour
                 // yield return null;
             }
 
-            batch.SetOctrees(octrees);
+            _batch.SetOctrees(octrees);
             reader.Close();
         } 
         
         // if no batch file
         else {
             Debug.Log("no file for batch " + batchname);
-            batch.SetOctrees(null);
+            _batch.SetOctrees(null);
         }
 
         busy = false;
-        batch.ConstructBatch();
+        _batch.ConstructBatch();
     } 
 
     public void GenerateMaterialGallery() {
@@ -119,7 +118,7 @@ public class BatchReadWriter : MonoBehaviour
 
                 nodes.Add(new OctNodeData(37, 0, 0));
 
-                Octree octree = new Octree(x, 0, z, RegionLoader.octreeSize, batch.transform.position);
+                Octree octree = new Octree(x, 0, z, RegionLoader.octreeSize, _batch.transform.position);
                 octree.Write(nodes.ToArray());
                 octrees[z, 0, x] = octree;
 
@@ -138,7 +137,7 @@ public class BatchReadWriter : MonoBehaviour
 
                 MatGalleryAction(ref nodes, 0, octreeIndex, label, ref type, 0);
 
-                Octree octree = new Octree(x, 1, z, RegionLoader.octreeSize, batch.transform.position);
+                Octree octree = new Octree(x, 1, z, RegionLoader.octreeSize, _batch.transform.position);
                 octree.Write(nodes.ToArray());
                 octrees[z, 1, x] = octree;
 
@@ -155,7 +154,7 @@ public class BatchReadWriter : MonoBehaviour
                     Vector3Int octreeIndex = new Vector3Int(x, y, z);
                     nodes.Add(new OctNodeData(0, 0, 0));
 
-                    Octree octree = new Octree(x, y, z, RegionLoader.octreeSize, batch.transform.position);
+                    Octree octree = new Octree(x, y, z, RegionLoader.octreeSize, _batch.transform.position);
                     octree.Write(nodes.ToArray());
                     octrees[z, y, x] = octree;
 
@@ -163,9 +162,9 @@ public class BatchReadWriter : MonoBehaviour
             }
         }
 
-        batch.SetOctrees(octrees);
+        _batch.SetOctrees(octrees);
         busy = false;
-        batch.ConstructBatch();
+        _batch.ConstructBatch();
     }
 
     public void MatGalleryAction(ref List<OctNodeData> nodes, int node, Vector3Int octree, byte label, ref byte nextType, int depth) {

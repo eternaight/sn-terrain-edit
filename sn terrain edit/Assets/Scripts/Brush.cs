@@ -15,7 +15,6 @@ public class Brush : MonoBehaviour
     int brushStreakAmount = 0;
     float brushActionPeriod = 1.0f;
 
-    bool GOcreated;
     [SerializeField] GameObject brushAreaObject;
 
     void Start() {

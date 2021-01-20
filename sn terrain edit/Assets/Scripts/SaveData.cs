@@ -29,7 +29,7 @@ public class SaveData : MonoBehaviour
         Save();
     }
     public static string GetValue(string key) {
-        if (save.data.ContainsKey(key) != -1) 
+        if (save.data.keys.IndexOf(key) != -1) 
             return save.data.GetValue(key);
         return "";
     }
@@ -69,7 +69,7 @@ public class SaveData : MonoBehaviour
         public void Write(string key, string value) {
             
             if (keys.Contains(key)) {
-                values[ContainsKey(key)] = value;
+                values[keys.IndexOf(key)] = value;
             } else {
                 keys.Add(key);
                 values.Add(value);
@@ -78,25 +78,12 @@ public class SaveData : MonoBehaviour
 
         public string GetValue(string key) {
             
-            int i = ContainsKey(key);
+            int i = keys.IndexOf(key);
 
             if (i != -1) {
                 return values[i];
             }
             return "";
-        }
-
-        public int ContainsKey(string key) {
-            int i = 0;
-            bool keyFound = false;
-            for (i = 0; i < keys.Count; i++) {
-                if (keys[i] == key) {
-                    keyFound = true;
-                    break;
-                }
-            }
-
-            return keyFound ? i : -1;
         }
     }
 }

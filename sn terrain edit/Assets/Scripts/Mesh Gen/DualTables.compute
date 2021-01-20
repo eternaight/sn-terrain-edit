@@ -1,0 +1,40 @@
+﻿float3 interpolate(float4 v1, float4 v2) {
+
+    float t = (-v1.w) / (v2.w - v1.w);
+    return v1.xyz + t * (v2.xyz-v1.xyz);
+}
+float3 interpolateHalf(float4 v1, float4 v2) {
+
+    float t = (-v1.w) / (v2.w - v1.w);
+    return v1.xyz + .5 * (v2.xyz-v1.xyz);
+}
+
+static const int cornerIndexAFromEdge[12] = {
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    0,
+    1,
+    2,
+    3
+};
+
+static const int cornerIndexBFromEdge[12] = {
+    1,
+    2,
+    3,
+    0,
+    5,
+    6,
+    7,
+    4,
+    4,
+    5,
+    6,
+    7
+};

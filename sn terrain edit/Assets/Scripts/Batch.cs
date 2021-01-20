@@ -8,27 +8,19 @@ public class Batch : MonoBehaviour
     public bool drawn;
     public int octreeSize;
     public Vector3Int batchIndex;
+    public Octree[,,] rootNodes;
 
     // other objects
-    GameObject newestMeshObj;
-    MeshRenderer meshrenderer;
-    MeshFilter filter;
-    VoxelandMesh voxeland;
+    VoxelandMesh _voxeland;
 
-    public Octree[,,] rootNodes;
-    public Octree this[Vector3Int index] {
-        get {
-            return rootNodes[index.z, index.y, index.x];
-        }
-    }
-
-    public event Action OnBatchDone;
+    public event Action OnBatchConstructed;
 
     public void Setup() {
 
         drawn = false;
         octreeSize = 32;
-        voxeland = FindObjectOfType<VoxelandMesh>();
+        _voxeland = FindObjectOfType<VoxelandMesh>();
+
         transform.position = (batchIndex - RegionLoader.loader.start) * octreeSize * 5;
 
         BoxCollider coll = gameObject.AddComponent<BoxCollider>();
@@ -56,8 +48,8 @@ public class Batch : MonoBehaviour
 
     public void ConstructBatch() {
         
-        voxeland.Init(rootNodes);
-        OnBatchDone();
+        _voxeland.Init(rootNodes);
+        OnBatchConstructed();
     }
 
     public void Write() {
