@@ -10,8 +10,7 @@ public class Batch : MonoBehaviour
     public Vector3Int batchIndex;
     public Octree[,,] rootNodes;
 
-    // other objects
-    VoxelandMesh _voxeland;
+    VoxelMesh _voxelMesh;
 
     public event Action OnBatchConstructed;
 
@@ -19,7 +18,7 @@ public class Batch : MonoBehaviour
 
         drawn = false;
         octreeSize = 32;
-        _voxeland = FindObjectOfType<VoxelandMesh>();
+        _voxelMesh = FindObjectOfType<VoxelMesh>();
 
         transform.position = (batchIndex - RegionLoader.loader.start) * octreeSize * 5;
 
@@ -48,7 +47,7 @@ public class Batch : MonoBehaviour
 
     public void ConstructBatch() {
         
-        _voxeland.Init(rootNodes);
+        _voxelMesh.Init(rootNodes);
         OnBatchConstructed();
     }
 

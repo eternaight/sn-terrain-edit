@@ -38,8 +38,8 @@ public class Brush : MonoBehaviour
 
                     lastBrushTime = Time.time;
 
-                    if (hit.collider.gameObject.GetComponentInParent<VoxelandMesh>()) {
-                        hit.collider.gameObject.GetComponentInParent<VoxelandMesh>().DensityAction_Sphere(hit.point, Brush.brushSize, mode);
+                    if (hit.collider.gameObject.GetComponentInParent<VoxelMesh>()) {
+                        hit.collider.gameObject.GetComponentInParent<VoxelMesh>().DensityAction_Sphere(hit.point, Brush.brushSize, mode);
                     }
                 }
             } else {

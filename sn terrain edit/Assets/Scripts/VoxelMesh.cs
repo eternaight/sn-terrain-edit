@@ -1,11 +1,11 @@
-﻿using System.Collections;
+﻿    using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Profiling;
 
-public class VoxelandMesh : MonoBehaviour
+public class VoxelMesh : MonoBehaviour
 {
-    VoxelandMesh voxeland;
+    VoxelMesh voxeland;
 
     static int pointsPerOctreeAxis = 33;
     public int containersPerSide = 5;
@@ -28,8 +28,23 @@ public class VoxelandMesh : MonoBehaviour
             for (int y = 0; y < containersPerSide; y++) {
                 for (int x = 0; x < containersPerSide; x++) {
                     
-                    int i = x + y * containersPerSide + z * containersPerSide * containersPerSide;
-                    octreeContainers[i] = new PointContainer(transform, rootNodes[z, y, x], new Vector3Int(x, y, z));
+                    int containerI = x + y * containersPerSide + z * containersPerSide * containersPerSide;
+
+                    int densitySide = pointsPerOctreeAxis;
+                    float[] containerDensity = new float[densitySide * densitySide * densitySide];
+                    Queue<DensityCube> densityCubes = rootNodes[z, y, x].FillDensityArray(densitySide);
+
+                    foreach(DensityCube dube in densityCubes) {
+                        for (int i = dube.start.x; i < dube.start.x + dube.size; i++) {
+                            for (int j = dube.start.y; j < dube.start.y + dube.size; j++) {
+                                for (int k = dube.start.z; k < dube.start.z + dube.size; k++) {
+                                    containerDensity[k * densitySide * densitySide + j * densitySide + i] = dube.densityValue;
+                                }
+                            }
+                        }
+                    }
+
+                    octreeContainers[containerI] = new PointContainer(transform, containerDensity, new Vector3Int(x, y, z));
                 }
             }
         }
@@ -60,14 +75,14 @@ public class VoxelandMesh : MonoBehaviour
         Vector3Int octreeIndex;
 
         // density data
-        public Octree octree;
+        public float[] density;
         
         // other objects
         public Bounds bounds;
         GameObject meshObj;
 
 
-        public PointContainer(Transform voxelandTransform, Octree myOctree, Vector3Int containerIndex) {
+        public PointContainer(Transform voxelandTransform, float[] density, Vector3Int containerIndex) {
             
             int side = pointsPerOctreeAxis;
             octreeIndex = containerIndex;
@@ -76,20 +91,20 @@ public class VoxelandMesh : MonoBehaviour
             
             // This adds border points to have a closed mesh - may cause problems if there's more than 1 batch
             // TODO: add support for 2+ batches (add border points only on border batches?)
-            if (octreeIndex.x == 4) pointsPerAxis.x += 1;
-            if (octreeIndex.y == 4) pointsPerAxis.y += 1;
-            if (octreeIndex.z == 4) pointsPerAxis.z += 1;
+            // if (octreeIndex.x == 4) pointsPerAxis.x += 1;
+            // if (octreeIndex.y == 4) pointsPerAxis.y += 1;
+            // if (octreeIndex.z == 4) pointsPerAxis.z += 1;
 
             Vector3 center = octreeIndex * 32 + Vector3.one * 16;
             bounds = new Bounds(center, Vector3.one * 32);
-            
-            octree = myOctree;
+
+            this.density = density;
 
             CreateMeshObject(voxelandTransform);
         }
 
         void CreateMeshObject(Transform voxelandTransform) {
-            meshObj = new GameObject("VoxelandMesh");
+            meshObj = new GameObject("VoxelMesh");
             MeshFilter filter = meshObj.AddComponent<MeshFilter>();
             
             MeshRenderer renderer = meshObj.AddComponent<MeshRenderer>();
@@ -99,35 +114,22 @@ public class VoxelandMesh : MonoBehaviour
 
         public void DensityAction_Sphere(Vector3 sphereOrigin, float sphereRadius, BrushMode mode) {
 
-            SphereDensitySetting setting = new SphereDensitySetting() { origin = sphereOrigin, radius = sphereRadius };
+            throw new System.NotImplementedException();
 
-            octree.ApplyDensityFunction(setting);
-            UpdateMesh();
+            //SphereDensitySetting setting = new SphereDensitySetting() { origin = sphereOrigin, radius = sphereRadius };
+
+            //octree.ApplyDensityFunction(setting);
+            //UpdateMesh();
         }
 
         public void UpdateMesh() {
             
-            int pointsSide = 32;
-            
-            // convert octree to float[]
-            float[] density = new float[pointsSide * pointsSide * pointsSide];
-            Queue<DensityCube> cubeQueue = octree.FillDensityArray(pointsSide);
-
-            foreach (DensityCube dube in cubeQueue) {
-                int size = dube.size;
-                for (int z = dube.start.z; z < dube.start.z + size; z++) {
-                    for (int y = dube.start.y; y < dube.start.y + size; y++) {
-                        for (int x = dube.start.x; x < dube.start.x + size; x++) {
-                            density[(x + y * pointsSide + z * pointsSide * pointsSide)] = dube.densityValue;
-                        }
-                    }
-                }
-            }
+            int pointsSide = VoxelMesh.pointsPerOctreeAxis;
 
             int[] pointTypes = new int[density.Length];
 
             Vector3Int pointCloudSize = Vector3Int.one * pointsSide;
-            Vector3 offset = octree.Origin;
+            Vector3 offset = octreeIndex * 32;
 
             DensityGenerator.density.ApplyEdgeDensity(density, pointTypes, pointCloudSize, octreeIndex);
             List<Mesh> containerMeshes = MeshBuilder.builder.MeshFromPoints(density, pointCloudSize, offset);
