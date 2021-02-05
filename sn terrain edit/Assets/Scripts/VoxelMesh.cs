@@ -1,4 +1,5 @@
-﻿    using System.Collections;
+using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Profiling;
@@ -7,7 +8,7 @@ public class VoxelMesh : MonoBehaviour
 {
     VoxelMesh voxeland;
 
-    static int pointsPerOctreeAxis = 33;
+    static int pointsPerOctreeAxis = 32;
     public int containersPerSide = 5;
 
     [SerializeField] DensityGenerator density;
@@ -31,20 +32,8 @@ public class VoxelMesh : MonoBehaviour
                     int containerI = x + y * containersPerSide + z * containersPerSide * containersPerSide;
 
                     int densitySide = pointsPerOctreeAxis;
-                    float[] containerDensity = new float[densitySide * densitySide * densitySide];
-                    Queue<DensityCube> densityCubes = rootNodes[z, y, x].FillDensityArray(densitySide);
 
-                    foreach(DensityCube dube in densityCubes) {
-                        for (int i = dube.start.x; i < dube.start.x + dube.size; i++) {
-                            for (int j = dube.start.y; j < dube.start.y + dube.size; j++) {
-                                for (int k = dube.start.z; k < dube.start.z + dube.size; k++) {
-                                    containerDensity[k * densitySide * densitySide + j * densitySide + i] = dube.densityValue;
-                                }
-                            }
-                        }
-                    }
-
-                    octreeContainers[containerI] = new PointContainer(transform, containerDensity, new Vector3Int(x, y, z));
+                    octreeContainers[containerI] = new PointContainer(transform, rootNodes[z, y, x], new Vector3Int(x, y, z));
                 }
             }
         }
@@ -69,25 +58,39 @@ public class VoxelMesh : MonoBehaviour
         }
     }
 
+    public void UpdateOctreeDensity() {
+        for (int z = 0; z < 5; z++) {
+            for (int y = 0; y < 5; y++) {
+                for (int x = 0; x < 5; x++) {
+                    PointContainer container = octreeContainers[Globals.LinearIndex(x, y, z, 5)];
+
+                    byte[] tempDensity;
+                    byte[] tempTypes;
+                    container.grid.GetFullGrids(out tempDensity, out tempTypes);
+                    rootNodes[z, y, x].DeRasterizeGrid(tempDensity, tempTypes, pointsPerOctreeAxis);
+                }
+            }
+        }
+    }
+
     [SerializeField]
     class PointContainer {
-        public Vector3Int pointsPerAxis;
         Vector3Int octreeIndex;
 
         // density data
-        public float[] density;
+        public VoxelGrid grid;
         
         // other objects
         public Bounds bounds;
         GameObject meshObj;
 
 
-        public PointContainer(Transform voxelandTransform, float[] density, Vector3Int containerIndex) {
+        public PointContainer(Transform voxelandTransform, Octree octree, Vector3Int containerIndex) {
             
             int side = pointsPerOctreeAxis;
             octreeIndex = containerIndex;
 
-            pointsPerAxis = new Vector3Int(side, side, side);
+            Vector3Int pointsPerAxis = new Vector3Int(side, side, side);
             
             // This adds border points to have a closed mesh - may cause problems if there's more than 1 batch
             // TODO: add support for 2+ batches (add border points only on border batches?)
@@ -98,7 +101,13 @@ public class VoxelMesh : MonoBehaviour
             Vector3 center = octreeIndex * 32 + Vector3.one * 16;
             bounds = new Bounds(center, Vector3.one * 32);
 
-            this.density = density;
+            byte[] tempTypes = new byte[32 * 32 * 32];
+            byte[] tempDensities = new byte[32 * 32 * 32];
+            octree.Rasterize(tempDensities, tempTypes, 32);
+
+            grid = new VoxelGrid(Globals._1DArrayTo3D(tempDensities, Vector3Int.one * 32), 
+                                 Globals._1DArrayTo3D(tempTypes, Vector3Int.one * 32),
+                                 pointsPerAxis);
 
             CreateMeshObject(voxelandTransform);
         }
@@ -123,16 +132,23 @@ public class VoxelMesh : MonoBehaviour
         }
 
         public void UpdateMesh() {
-            
-            int pointsSide = VoxelMesh.pointsPerOctreeAxis;
 
-            int[] pointTypes = new int[density.Length];
-
-            Vector3Int pointCloudSize = Vector3Int.one * pointsSide;
             Vector3 offset = octreeIndex * 32;
 
-            DensityGenerator.density.ApplyEdgeDensity(density, pointTypes, pointCloudSize, octreeIndex);
-            List<Mesh> containerMeshes = MeshBuilder.builder.MeshFromPoints(density, pointCloudSize, offset);
+            CheckCopyOctreeSides();
+
+            bool old = true;
+            List<Mesh> containerMeshes;
+
+            byte[] tempDensities;
+            byte[] tempTypes;
+            grid.GetFullGrids(out tempDensities, out tempTypes);
+            
+            if (old) {
+                containerMeshes = MeshBuilder.builder.MeshFromPoints(tempDensities, tempTypes, grid.fullGridDim, offset);
+            } else {
+                containerMeshes = MeshBuilderUWE.builder.ComputeMesh(tempDensities, tempTypes, grid.fullGridDim.x, offset);
+            }
 
             // update data
             if (containerMeshes.Count > 0) {
@@ -141,13 +157,92 @@ public class VoxelMesh : MonoBehaviour
 
             meshObj.AddComponent<MeshCollider>();
         }
+
+
+        // This method attaches data from neighbouring octrees to bridge the gaps between them
+        // TODO: Don't like this approach, think of a better thing
+        public void CheckCopyOctreeSides() {
+            VoxelMesh voxelMesh = meshObj.transform.parent.GetComponent<VoxelMesh>();
+
+            if (octreeIndex.x != 4)
+                grid.AddPadding(voxelMesh.octreeContainers[Globals.LinearIndex(octreeIndex.x + 1, octreeIndex.y, octreeIndex.z, 5)].grid, 0);
+            if (octreeIndex.y != 4)
+                grid.AddPadding(voxelMesh.octreeContainers[Globals.LinearIndex(octreeIndex.x, octreeIndex.y + 1, octreeIndex.z, 5)].grid, 1);
+            if (octreeIndex.z != 4)
+                grid.AddPadding(voxelMesh.octreeContainers[Globals.LinearIndex(octreeIndex.x, octreeIndex.y, octreeIndex.z + 1, 5)].grid, 2);
+
+            if (octreeIndex.x != 0)
+                grid.AddPadding(voxelMesh.octreeContainers[Globals.LinearIndex(octreeIndex.x - 1, octreeIndex.y, octreeIndex.z, 5)].grid, 3);
+            if (octreeIndex.y != 0)
+                grid.AddPadding(voxelMesh.octreeContainers[Globals.LinearIndex(octreeIndex.x, octreeIndex.y - 1, octreeIndex.z, 5)].grid, 4);
+            if (octreeIndex.z != 0)
+                grid.AddPadding(voxelMesh.octreeContainers[Globals.LinearIndex(octreeIndex.x, octreeIndex.y, octreeIndex.z - 1, 5)].grid, 5);
+        }
     }
 }
 
-public class DensityContainer {
-    public float[] density;
-    public int side;
-    public DensityContainer(int side) {
-        density = new float[side * side * side];
+public class VoxelGrid {
+    public byte[,,] densityGrid;
+    public byte[,,] typeGrid;
+    public Vector3Int fullGridDim;
+
+    public VoxelGrid(byte[,,] _density, byte[,,] _types, Vector3Int dimensions) {
+        
+        int fullSide = 32 + 2;
+        densityGrid = new byte[fullSide, fullSide, fullSide];
+        typeGrid = new byte[fullSide, fullSide, fullSide];;
+        
+        for (int z = 0; z < 32; z++) {
+            for (int y = 0; y < 32; y++) {
+                for (int x = 0; x < 32; x++) {
+                    densityGrid[x + 1, y + 1, z + 1] = _density[x, y, z];
+                    typeGrid[x + 1, y + 1, z + 1] = _types[x, y, z];
+                }
+            }
+        }
+
+        fullGridDim = Vector3Int.one * fullSide;
+    }
+
+    public void AddPadding(VoxelGrid fromGrid, int side) {
+        
+        int dir = side % 3;
+        bool reverse = side / 3 == 1;
+
+        if (dir == 0) {
+            int myX = (reverse ? 0 : 33);
+            int fromX = (reverse ? 32 : 1);
+            for (int y = 1; y < 33; ++y) {
+                for (int z = 1; z < 33; ++z) {
+                    densityGrid[myX, y, z] = fromGrid.densityGrid[fromX, y, z];
+                    typeGrid[myX, y, z] = fromGrid.typeGrid[fromX, y, z];
+                }
+            }
+        }
+        else if (dir == 1) {
+            int myY = (reverse ? 0 : 33);
+            int fromY = (reverse ? 32 : 1);
+            for (int x = 1; x < 33; ++x) {
+                for (int z = 1; z < 33; ++z) {
+                    densityGrid[x, myY, z] = fromGrid.densityGrid[x, fromY, z];
+                    typeGrid[x, myY, z] = fromGrid.typeGrid[x, fromY, z];
+                }
+            }
+        }
+        else if (dir == 2) {
+            int myZ = (reverse ? 0 : 33);
+            int fromZ = (reverse ? 32 : 1);
+            for (int x = 1; x < 33; ++x) {
+                for (int y = 1; y < 33; ++y) {
+                    densityGrid[x, y, myZ] = fromGrid.densityGrid[x, y, fromZ];
+                    typeGrid[x, y, myZ] = fromGrid.typeGrid[x, y, fromZ];
+                }
+            }
+        }
+    }
+
+    public void GetFullGrids(out byte[] fullDensityGrid, out byte[] fullTypeGrid) {
+        fullDensityGrid =   Globals._3DArrayTo1D(densityGrid);
+        fullTypeGrid =      Globals._3DArrayTo1D(typeGrid);
     }
 }

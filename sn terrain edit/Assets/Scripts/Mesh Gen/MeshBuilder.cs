@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 public class MeshBuilder : MonoBehaviour
@@ -13,7 +14,7 @@ public class MeshBuilder : MonoBehaviour
     public ComputeShader shader;
     ComputeBuffer densityBuffer;
     ComputeBuffer typeBuffer;
-    ComputeBuffer triBuffer; 
+    ComputeBuffer faceBuffer; 
     ComputeBuffer triCountBuffer;
 
     Batch batch;
@@ -33,7 +34,7 @@ public class MeshBuilder : MonoBehaviour
         int numPoints = pointCounts.x * pointCounts.y * pointCounts.z;
 
         int numVoxels = (pointCounts.x - 1) * (pointCounts.y - 1) * (pointCounts.z - 1);
-        int maxTriangleCount = numVoxels * 6;
+        int maxFaceCount = numVoxels;
 
         // Always create buffers in editor (since buffers are released immediately to prevent memory leak)
         // Otherwise, only create if null or if size has changed
@@ -44,99 +45,120 @@ public class MeshBuilder : MonoBehaviour
 
             ReleaseBuffers ();
             
-            triBuffer = new ComputeBuffer (maxTriangleCount, sizeof (float) * 3 * 3 + sizeof(int), ComputeBufferType.Append);
-            densityBuffer = new ComputeBuffer (numPoints, sizeof (float));
+            faceBuffer = new ComputeBuffer (maxFaceCount, Face.GetStride(), ComputeBufferType.Append);
+            densityBuffer = new ComputeBuffer (numPoints, sizeof (int));
             typeBuffer = new ComputeBuffer (numPoints, sizeof (int));
             triCountBuffer = new ComputeBuffer (1, sizeof (int), ComputeBufferType.Raw);
         }
     }
 
     void ReleaseBuffers () {
-        if (triBuffer != null) {
-            triBuffer.Release ();
-            densityBuffer.Release ();
+        if (faceBuffer != null) {
+            faceBuffer.Release();
+            densityBuffer.Release();
             typeBuffer.Release();
-            triCountBuffer.Release ();
+            triCountBuffer.Release();
         }
     }
 
-    public List<Mesh> MeshFromPoints(float[] density, Vector3Int size, Vector3 offset, int[] pointTypes = null) {
+    public List<Mesh> MeshFromPoints(byte[] densityGrid, byte[] typeGrid, Vector3Int size, Vector3 offset) {
 
         // Setting data inside shader
+
+        Debug.Log($"Creating buffers of size: {size.ToString()}");
 
         CreateBuffers(size);
 
         int numThreads = Mathf.CeilToInt ((size.x) / (float) Globals.threadGroupSize);
 
-        densityBuffer.SetData(density);
-        triBuffer.SetCounterValue (0);
+        if (typeGrid == null) typeGrid = new byte[size.x * size.y * size.z];
 
-        if (pointTypes == null) pointTypes = new int[size.x * size.y * size.z];
+    	int[] densityIntGrid = densityGrid.Select(x => (int)x).ToArray();
+    	int[] typeIntGrid = typeGrid.Select(x => (int)x).ToArray();
 
-        typeBuffer.SetData(pointTypes);
-        shader.SetBuffer(0, "pointTypes", typeBuffer);
+        typeBuffer.SetData(typeIntGrid);
+        densityBuffer.SetData(densityIntGrid);
+        faceBuffer.SetCounterValue (0);
 
-        shader.SetBuffer (0, "density", densityBuffer);
-        shader.SetBuffer (0, "triangles", triBuffer);
-        
-        Debug.Log(numThreads);
+        int kernel = 0;
+        shader.SetBuffer(kernel, "pointTypes", typeBuffer);
+        shader.SetBuffer (kernel, "density", densityBuffer);
+        shader.SetBuffer (kernel, "faces", faceBuffer);
 
         shader.SetInt ("numPointsX", size.x);
         shader.SetInt ("numPointsY", size.y);
         shader.SetInt ("numPointsZ", size.z);
         shader.SetVector("meshOffset", offset);
         
-        shader.Dispatch (0, numThreads, numThreads, numThreads);
+        shader.Dispatch (kernel, numThreads, numThreads, numThreads);
 
         // Retrieving data from sahder
 
-        ComputeBuffer.CopyCount (triBuffer, triCountBuffer, 0);
+        ComputeBuffer.CopyCount (faceBuffer, triCountBuffer, 0);
         int[] triCountArray = new int[1];
         triCountBuffer.GetData (triCountArray);
-        int numTris = triCountArray[0];
+        int numFaces = triCountArray[0];
 
-        Triangle[] tris = new Triangle[numTris];
+        Face[] faces = new Face[numFaces];
 
-        triBuffer.GetData (tris, 0, 0, numTris);
+        faceBuffer.GetData (faces, 0, 0, numFaces);
 
         // Segmenting geometry into separate meshes (to overcome vertex limit)
         
         List<Mesh> meshes = new List<Mesh>();
 
-        Vector3[] vertices = new Vector3[numTris * 3];
-        int[] meshTriangles = new int[numTris * 3];
-        Vector2[] meshUVS = new Vector2[numTris * 3];
+        Vector3[] vertices = new Vector3[numFaces * 4];
+        List<int> meshTriangles = new List<int>();
+        Vector2[] meshUVS = new Vector2[numFaces * 4];
 
-        while (numTris > 0) {
+        Int64 countVertices = 0;
 
-            int maxTris = 21844;
-            int nextMeshTriCount = numTris;
-            if (numTris > maxTris) {
-                nextMeshTriCount = maxTris;
-                numTris -= maxTris;
-            }
+        int maxTris = 21844;
+        int facesRemaining = numFaces;
 
-            for (int i = 0; i < nextMeshTriCount; i++) {
+        Vector3 vertexOffsetSum = Vector3.one * 0.5f + offset;
+        bool useCoreDensityOffset = true;
+        if (useCoreDensityOffset) vertexOffsetSum -= Vector3.one;
 
-                // one tri
-                for (int j = 0; j < 3; j++) {
-                    
-                    meshTriangles[i * 3 + j] = i * 3 + j;
-                    vertices[i * 3 + j] = tris[i + (maxTris * meshes.Count)][j];
-                    int type = tris[i + (maxTris * meshes.Count)].type;
-                    meshUVS[i * 3 + j] = new Vector2((type % 16)/16f, (type / 16)/16f);
-                }
+        while (facesRemaining > 0) {
+
+            int nextFacePool = Math.Min(facesRemaining, maxTris * 2);
+
+            for (int i = 0; i < nextFacePool; i++) {
+
+                // for each face:
+                int faceIndex = i + maxTris * 2 * meshes.Count;
+                int faceType = faces[faceIndex].type;
+
+                vertices[i * 4] =     faces[faceIndex][0] + offset;
+                vertices[i * 4 + 1] = faces[faceIndex][1] + offset;
+                vertices[i * 4 + 2] = faces[faceIndex][2] + offset;
+                vertices[i * 4 + 3] = faces[faceIndex][3] + offset;
+                
+                // A, B, C, A, C, D
+                meshTriangles.Add(i * 4);
+                meshTriangles.Add(i * 4 + 1);
+                meshTriangles.Add(i * 4 + 2);
+                meshTriangles.Add(i * 4);
+                meshTriangles.Add(i * 4 + 2);
+                meshTriangles.Add(i * 4 + 3);
+
+                meshUVS[i * 4] =     new Vector2((faceType % 16)/16f, (faceType / 16)/16f);
+                meshUVS[i * 4 + 1] = new Vector2((faceType % 16)/16f, (faceType / 16)/16f);
+                meshUVS[i * 4 + 2] = new Vector2((faceType % 16)/16f, (faceType / 16)/16f);
+                meshUVS[i * 4 + 3] = new Vector2((faceType % 16)/16f, (faceType / 16)/16f);
             }
         
             Mesh mesh = new Mesh();
             mesh.vertices = vertices;
-            mesh.triangles = meshTriangles;
+            mesh.triangles = meshTriangles.ToArray();
             mesh.uv = meshUVS;
 
             mesh.RecalculateNormals();
 
-            numTris -= maxTris;
+            facesRemaining -= nextFacePool;
             meshes.Add(mesh);
+            countVertices += mesh.vertexCount;
         }
         return meshes;
     } 
@@ -158,6 +180,32 @@ public class MeshBuilder : MonoBehaviour
                         return c;
                 }
             }
+        }
+    }
+
+    struct Face {
+        public Vector3 a, b, c, d;
+        public int type;
+        public Vector3 this [int i] {
+            get {
+                switch (i) {
+                    case 0:
+                        return a;
+                    case 1:
+                        return b;
+                    case 2:
+                        return c;
+                    default:
+                        return d;
+                }
+            }
+        }
+
+        ///<summary>
+        /// Returns stride of one face for Compute shaders
+        ///</summary>
+        public static int GetStride() {
+            return sizeof (float) * 3 * 4 + sizeof(int);
         }
     }
 }

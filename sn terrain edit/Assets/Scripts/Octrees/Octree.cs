@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -73,13 +73,15 @@ public class Octree {
         node.ApplyDensityFunction(density);
     }
 
-    public Queue<DensityCube> FillDensityArray(int side) {
 
-        Queue<DensityCube> cubeQueue = new Queue<DensityCube>();
-        node.FillDensityQueue(cubeQueue, side, node.position);
-
-        return cubeQueue;
+    public void Rasterize(byte[] densityGrid, byte[] typeGrid, int side) {
+        node.RasterizeTree(densityGrid, typeGrid, side, node.position);
     }
+    public OctNodeData[] DeRasterizeGrid(byte[] densityGrid, byte[] typeGrid, int side) {
+        node.DeRasterizeGrid(densityGrid, typeGrid, side, node.position);
+        return Read();
+    }
+
 
     public void DrawOctreeGizmos() {
         node.Visualize();
@@ -133,13 +135,13 @@ public class Octree {
         /// </summary>
         public void WriteData(OctNodeData[] dataarray, int myPos) {
             
-            this.data = new OctNodeData(dataarray[myPos]);
+            data = new OctNodeData(dataarray[myPos]);
             
-            if (this.data.childPosition > 0) {
+            if (data.childPosition > 0) {
 
                 Subdivide();
                 for (int i = 0; i < 8; i++) {
-                    children[i].WriteData(dataarray, (this.data.childPosition + i));
+                    children[i].WriteData(dataarray, (data.childPosition + i));
                 }
 
             } else {
@@ -152,7 +154,7 @@ public class Octree {
         /// </summary>
         public void ReadData(ref List<OctNodeData> dataarray, int myPos) {
 
-            if (data.childPosition > 0) {
+            if (children != null) {
                 
                 // get new child index
                 int newChildIndex = dataarray.Count;
@@ -228,26 +230,46 @@ public class Octree {
         }
 
         
-        public void FillDensityQueue(Queue<DensityCube> cubeQueue, int thisCubeSize, Vector3 octreeOriginOffset) {
+        public void RasterizeTree(byte[] densityGrid, byte[] typeGrid, int thisCubeSize, Vector3 octreeOrigin) {
 
             if (children != null) {
                 for (int b = 0; b < 8; b++) {
-                    children[b].FillDensityQueue(cubeQueue, thisCubeSize / 2, octreeOriginOffset);
+                    children[b].RasterizeTree(densityGrid, typeGrid, thisCubeSize / 2, octreeOrigin);
                 }
             } else {
                 
                 float thisDensity = data.GetDensity();
-                Vector3 localPosition = this.position - octreeOriginOffset;
-                Vector3Int start = new Vector3Int(Mathf.FloorToInt(localPosition.x), Mathf.FloorToInt(localPosition.y), Mathf.FloorToInt(localPosition.z));
+                Vector3 localPos = this.position - octreeOrigin;
+                Vector3Int start = new Vector3Int((int)localPos.x, (int)localPos.y, (int)localPos.z);
 
-                //Debug.Log($"Filling, start: {start.ToString()}, size: {thisCubeSize}" );
-
-                cubeQueue.Enqueue(new DensityCube() { start = start, size = thisCubeSize, densityValue = thisDensity});
+                for (int k = start.z; k < start.z + thisCubeSize; ++k) {
+                    for (int j = start.y; j < start.y + thisCubeSize; ++j) {
+                        for (int i = start.x; i < start.x + thisCubeSize; ++i) {
+                            typeGrid[Globals.LinearIndex(i, j, k, 32)] = data.type;
+                            densityGrid[Globals.LinearIndex(i, j, k, 32)] = data.signedDist;
+                        }
+                    }
+                }
             }
         }
 
-        int pindex(int x, int y, int z, int side) {
-            return x + y * side + z * side * side;
+        public void DeRasterizeGrid(byte[] densityGrid, byte[] typeGrid, int gridSide, Vector3 octreeOrigin) {
+            if (this.size > 1) {
+                Subdivide();
+
+                for (int b = 0; b < 8; b++) {
+                    children[b].DeRasterizeGrid(densityGrid, typeGrid, gridSide, octreeOrigin);
+                }
+
+                if (IsMonotone()) StripChildren();
+            }
+            else {
+                Vector3 localPos = this.position - octreeOrigin;
+                int gridIndex = Globals.LinearIndex((int)localPos.x, (int)localPos.y, (int)localPos.z, gridSide);
+
+                this.data.type = typeGrid[gridIndex];
+                this.data.signedDist = densityGrid[gridIndex];
+            }
         }
 
         public void ApplyDensityFunction(SphereDensitySetting density) {
@@ -282,16 +304,14 @@ public class Octree {
 
             if (children == null) return true;
 
-            bool monotone = true;
-
-            int childType = children[0].data.type;
             int childDensity = children[0].data.signedDist;
             for (int b = 1; b < 8; b++) {
-                monotone &= (childType == children[b].data.type);
-                monotone &= (childDensity == children[b].data.signedDist);
+                if (childDensity != children[b].data.signedDist) {
+                    return false;
+                }
             }
 
-            return monotone;
+            return true;
         }
 
         public void Visualize() {
@@ -301,10 +321,15 @@ public class Octree {
                     node.Visualize();
                 }
             } else {
-                float density = data.GetDensity();
-                if (density > 0) {
-                    float v = density / 2 + 0.5f;
-                    Gizmos.color = new Color(v, v, v);
+                float density = data.signedDist;//data.GetDensity();
+                // if (density > 0) {
+                //     float v = density / 126f;
+                //     Gizmos.color = new Color(v, v, v);
+                //     Gizmos.DrawCube(position + Vector3.one * size * 0.5f, Vector3.one * size);
+                // }
+                if (density == 0) {
+                    bool solid = data.type != 0;
+                    Gizmos.color = solid ? Color.yellow : Color.white;
                     Gizmos.DrawCube(position + Vector3.one * size * 0.5f, Vector3.one * size);
                 }
             }
@@ -366,6 +391,13 @@ public struct OctNodeData {
         }
         return signedDist >= 126;
     }
+    public static bool IsBelowSurface(byte type, byte signedDist) {
+        if (signedDist == 0) 
+        {
+            return type > 0;
+        }
+        return signedDist >= 126;
+    }
 
     public float GetDensity() {
 
@@ -379,6 +411,9 @@ public struct OctNodeData {
         return -1f;
     }
     public void SetDensity(float val) {
+        if (val == 1 || val == -1) {
+            signedDist = 0;
+        }
         signedDist = (byte)(val * 126 + 126);
     }
 

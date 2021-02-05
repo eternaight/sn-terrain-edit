@@ -11,7 +11,7 @@ public class Globals : MonoBehaviour {
     public Color[] brushColors;
     public string batchSourcePath;
     public string batchOutputPath;
-    public const int threadGroupSize = 1;
+    public const int threadGroupSize = 8;
 
     public const string sourcePathKey = "sourcePath";
     public const string outputPathKey = "outputPath";
@@ -76,4 +76,38 @@ public class Globals : MonoBehaviour {
             SaveData.WriteKey(outputPathKey, path);
     }
 
+    public static int LinearIndex(int x, int y, int z, int dim) {
+        return x + y * dim + z * dim * dim;
+    }
+    public static int LinearIndex(int x, int y, int z, Vector3Int dim) {
+        return x + y * dim.x + z * dim.x * dim.y;
+    }
+    
+    public static byte[] _3DArrayTo1D(byte[,,] array) {
+        Vector3Int size = new Vector3Int(array.GetLength(0), array.GetLength(1), array.GetLength(2));
+        byte[] new_array = new byte[size.x * size.y * size.z];
+
+        for (int k = 0; k < size.z; ++k) {
+            for (int j = 0; j < size.y; ++j) {
+                for (int i = 0; i < size.x; ++i) {
+                    new_array[LinearIndex(i, j, k, size)] = array[i, j, k];
+                }
+            }
+        }
+
+        return new_array;
+    }
+    public static byte[,,] _1DArrayTo3D(byte[] array, Vector3Int size) {
+        byte[,,] new_array = new byte[size.x, size.y, size.z];
+
+        for (int k = 0; k < size.z; ++k) {
+            for (int j = 0; j < size.y; ++j) {
+                for (int i = 0; i < size.x; ++i) {
+                    new_array[i, j, k] = array[LinearIndex(i, j, k, size)];
+                }
+            }
+        }
+
+        return new_array;
+    }
 }

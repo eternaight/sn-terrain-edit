@@ -52,6 +52,7 @@ public class Batch : MonoBehaviour
     }
 
     public void Write() {
+        _voxelMesh.UpdateOctreeDensity();
         BatchReadWriter.readWriter.WriteBatch(batchIndex, rootNodes);
     }
 

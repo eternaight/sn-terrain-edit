@@ -8,6 +8,26 @@ float3 interpolateHalf(float4 v1, float4 v2) {
     float t = (-v1.w) / (v2.w - v1.w);
     return v1.xyz + .5 * (v2.xyz-v1.xyz);
 }
+float decodeDensity(int densityByte) {
+    return (densityByte - 126) / (float)126;
+}
+
+bool isBelowSurface(int t, int d) {
+    if (d == 0) 
+    {
+        return t > 0;
+    }
+    return d >= 126;
+}
+
+static const int3 directionToPos[6] = {
+    int3(0, 1, 0),
+    int3(0, -1, 0),
+    int3(1, 0, 0),
+    int3(-1, 0, 0),
+    int3(0, 0, 1),
+    int3(0, 0, -1)
+};
 
 static const int cornerIndexAFromEdge[12] = {
     0,

@@ -10288,7 +10288,7 @@ GameObject:
   - component: {fileID: 1912293070}
   - component: {fileID: 1912293069}
   m_Layer: 0
-  m_Name: Voxeland
+  m_Name: VoxelMesh
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

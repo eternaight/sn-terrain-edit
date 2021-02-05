@@ -1,7 +1,8 @@
-﻿#pragma kernel DualContour
+#pragma kernel DualContour
 #include "DualTables.compute"
 
-static const int numthreads = 1;
+// MUST be equal to Globals.threadGroupSize
+static const int numthreads = 8;
 
 struct Triangle {
     float3 vertexA;
@@ -17,21 +18,35 @@ struct Triangle {
         }
     }
 };
+struct Face {
+    float3 vertexA;
+    float3 vertexB;
+    float3 vertexC;
+    float3 vertexD;
+    int type;
+};
 
 // Fill beforehand, source data
-RWStructuredBuffer<float> density;
+RWStructuredBuffer<int> density;
 RWStructuredBuffer<int> pointTypes;
 
 // Output
-AppendStructuredBuffer<Triangle> triangles;
+AppendStructuredBuffer<Face> faces;
 
 int numPointsX;
 int numPointsY;
 int numPointsZ;
 float3 meshOffset;
 
-int indexFromCoord(uint x, uint y, uint z) {
+int linearIndex(uint x, uint y, uint z) {
     return z * numPointsX * numPointsY + y * numPointsX + x;
+}
+
+bool checkBoundsAll(int3 pos) {
+    return pos.x >= 0 && pos.y >= 0 && pos.z >= 0 && pos.x < numPointsX && pos.y < numPointsY && pos.z < numPointsZ;
+}
+bool checkBoundsOctree(int3 pos) {
+    return pos.x > 0 && pos.y > 0 && pos.z > 0 && pos.x < 33 && pos.y < 33 && pos.z < 33;
 }
 
 float3 FindBestPoint(int x, int y, int z) {
@@ -40,15 +55,17 @@ float3 FindBestPoint(int x, int y, int z) {
     int count = 0;
     
     float4 cubeCorners[8] = {
-        float4(x, y, z,             density[indexFromCoord(x, y, z)]),
-        float4(x + 1, y, z,         density[indexFromCoord(x + 1, y, z)]),
-        float4(x + 1, y + 1, z,     density[indexFromCoord(x + 1, y + 1, z)]),
-        float4(x, y + 1, z,         density[indexFromCoord(x, y + 1, z)]),
-        float4(x, y, z + 1,         density[indexFromCoord(x, y, z + 1)]),
-        float4(x + 1, y, z + 1,     density[indexFromCoord(x + 1, y, z + 1)]),
-        float4(x + 1, y + 1, z + 1, density[indexFromCoord(x + 1, y + 1, z + 1)]),
-        float4(x, y + 1, z + 1,     density[indexFromCoord(x, y + 1, z + 1)]),
+        float4(x, y, z,             decodeDensity(density[linearIndex(x, y, z)])),
+        float4(x + 1, y, z,         decodeDensity(density[linearIndex(x + 1, y, z)])),
+        float4(x + 1, y + 1, z,     decodeDensity(density[linearIndex(x + 1, y + 1, z)])),
+        float4(x, y + 1, z,         decodeDensity(density[linearIndex(x, y + 1, z)])),
+        float4(x, y, z + 1,         decodeDensity(density[linearIndex(x, y, z + 1)])),
+        float4(x + 1, y, z + 1,     decodeDensity(density[linearIndex(x + 1, y, z + 1)])),
+        float4(x + 1, y + 1, z + 1, decodeDensity(density[linearIndex(x + 1, y + 1, z + 1)])),
+        float4(x, y + 1, z + 1,     decodeDensity(density[linearIndex(x, y + 1, z + 1)]))
     };
+
+    return interpolateHalf(cubeCorners[0], cubeCorners[6]) + meshOffset;
 
     // find sum of all MC edge points
     for (int k = 0; k < 12; k++) {
@@ -66,13 +83,78 @@ float3 FindBestPoint(int x, int y, int z) {
     return (pos + meshOffset);
 }
 
+Face MakeFace(int3 p1, int3 p2, int dir, int type) {
+    Face face;
+    face.type = type;
+
+    // For each edge that exhibits a sign change,
+    // generate a quad connecting the minimizing vertices of the four cubes containing the edge.
+
+    float3 cube1Index, cube2Index, cube3Index, cube4Index; 
+
+    int3 pMin = int3(min(p1.x, p2.x), min(p1.y, p2.y), min(p1.z, p2.z));
+    
+    switch(dir) {
+        default:
+        case 0:
+            // p1->p2 = y+
+            cube1Index = float3(pMin.x - 1, pMin.y, pMin.z - 1);
+            cube2Index = float3(pMin.x - 1, pMin.y, pMin.z);
+            cube3Index = float3(pMin.x, pMin.y, pMin.z);
+            cube4Index = float3(pMin.x, pMin.y, pMin.z - 1);
+            break;
+        case 1:
+            // p1->p2 = y-
+            cube1Index = float3(pMin.x - 1, pMin.y, pMin.z - 1);
+            cube2Index = float3(pMin.x, pMin.y, pMin.z - 1);
+            cube3Index = float3(pMin.x, pMin.y, pMin.z);
+            cube4Index = float3(pMin.x - 1, pMin.y, pMin.z);
+            break;
+        case 2:
+            // p1->p2 = x+
+            cube1Index = float3(pMin.x, pMin.y - 1, pMin.z - 1);
+            cube2Index = float3(pMin.x, pMin.y, pMin.z - 1);
+            cube3Index = float3(pMin.x, pMin.y, pMin.z);
+            cube4Index = float3(pMin.x, pMin.y - 1, pMin.z);
+            break;
+        case 3:
+            // p1->p2 = x-
+            cube1Index = float3(pMin.x, pMin.y - 1, pMin.z - 1);
+            cube2Index = float3(pMin.x, pMin.y - 1, pMin.z);
+            cube3Index = float3(pMin.x, pMin.y, pMin.z);
+            cube4Index = float3(pMin.x, pMin.y, pMin.z - 1);
+            break;
+        case 4:
+            // p1->p2 = z+
+            cube1Index = float3(pMin.x - 1, pMin.y - 1, pMin.z);
+            cube2Index = float3(pMin.x, pMin.y - 1, pMin.z);
+            cube3Index = float3(pMin.x, pMin.y, pMin.z);
+            cube4Index = float3(pMin.x - 1, pMin.y, pMin.z);
+            break;
+        case 5:
+            // p1->p2 = z-
+            cube1Index = float3(pMin.x - 1, pMin.y - 1, pMin.z);
+            cube2Index = float3(pMin.x - 1, pMin.y,     pMin.z);
+            cube3Index = float3(pMin.x, pMin.y,         pMin.z);
+            cube4Index = float3(pMin.x, pMin.y - 1,     pMin.z);
+            break;
+    }
+
+    face.vertexA = cube1Index;
+    face.vertexB = cube2Index;
+    face.vertexC = cube3Index;
+    face.vertexD = cube4Index;
+
+    return face;
+}
+
 int FindBestType(uint x, uint y, uint z) {
     
     for (int k = 0; k < 2; k++) {
         for (int j = 0; j < 2; j++) {
             for (int i = 0; i < 2; i++) {
-                if (pointTypes[indexFromCoord(x + i, y + j, z + k)] != 0) {
-                    return pointTypes[indexFromCoord(x + i, y + j, z + k)];
+                if (pointTypes[linearIndex(x + i, y + j, z + k)] != 0) {
+                    return pointTypes[linearIndex(x + i, y + j, z + k)];
                 }
             }
         }
@@ -83,85 +165,28 @@ int FindBestType(uint x, uint y, uint z) {
 [numthreads(numthreads, numthreads, numthreads)]
 void DualContour(int3 id : SV_DispatchThreadID) {
 
-    // action per each cell
-    bool inBounds = (id.x < numPointsX - 2 && id.y < numPointsY - 2 && id.z < numPointsZ - 2);
-    int faceType = FindBestType(id.x, id.y, id.z);
+    if (checkBoundsOctree(id)) {
 
-    if ( id.x > 0 && id.y > 0 && inBounds) {
+        // action per each cell
+        int faceType = pointTypes[linearIndex(id.x, id.y, id.z)];
+        int faceSignedDist = density[linearIndex(id.x, id.y, id.z)];
 
-        bool solid1 = density[indexFromCoord(id.x, id.y, id.z)    ] > 0;
-        bool solid2 = density[indexFromCoord(id.x, id.y, id.z + 1)] > 0;
+        if (isBelowSurface(faceType, faceSignedDist)) {
+            for (int dir = 0; dir < 6; dir++) {
+                int3 dirV = directionToPos[dir];
+                int3 id1 = int3(id.x + dirV.x, id.y + dirV.y, id.z + dirV.z);
 
-        if (solid1 != solid2) {
+                int density1, type1;
 
-            Triangle tri1;
-            tri1.vertexA = FindBestPoint(id.x - 1, id.y - 1, id.z);
-            tri1.vertexB = FindBestPoint(id.x - 1, id.y, id.z);
-            tri1.vertexC = FindBestPoint(id.x, id.y - 1, id.z);
-            tri1.type = faceType;
-            tri1.Swap(solid1);
+                if (checkBoundsAll(id1)) {
+                    density1 = density[linearIndex(id1.x, id1.y, id1.z)];
+                    type1 = pointTypes[linearIndex(id1.x, id1.y, id1.z)];
 
-            Triangle tri2;
-            tri2.vertexA = FindBestPoint(id.x - 1, id.y, id.z);
-            tri2.vertexB = FindBestPoint(id.x, id.y, id.z);
-            tri2.vertexC = FindBestPoint(id.x, id.y - 1, id.z);
-            tri2.type = faceType;
-            tri2.Swap(solid1);
-
-            triangles.Append(tri1);
-            triangles.Append(tri2);
-        }
-    }
-
-    if ( id.x > 0 && id.z > 0 && inBounds) {
-
-        bool solid1 = density[indexFromCoord(id.x, id.y,     id.z)] > 0;
-        bool solid2 = density[indexFromCoord(id.x, id.y + 1, id.z)] > 0;
-
-        if (solid1 != solid2) {
-
-            Triangle tri1;
-            tri1.vertexA = FindBestPoint(id.x - 1, id.y, id.z - 1);
-            tri1.vertexB = FindBestPoint(id.x - 1, id.y, id.z);
-            tri1.vertexC = FindBestPoint(id.x, id.y, id.z - 1);
-            tri1.type = faceType;
-            tri1.Swap(solid2);
-
-            Triangle tri2;
-            tri2.vertexA = FindBestPoint(id.x - 1, id.y, id.z);
-            tri2.vertexB = FindBestPoint(id.x, id.y, id.z);
-            tri2.vertexC = FindBestPoint(id.x, id.y, id.z - 1);
-            tri2.type = faceType;
-            tri2.Swap(solid2);
-
-            triangles.Append(tri1);
-            triangles.Append(tri2);
-        }
-    }
-
-    if ( id.z > 0 && id.y > 0 && inBounds) {
-
-        bool solid1 = density[indexFromCoord(id.x,     id.y, id.z)] > 0;
-        bool solid2 = density[indexFromCoord(id.x + 1, id.y, id.z)] > 0;
-
-        if (solid1 != solid2) {
-
-            Triangle tri1;
-            tri1.vertexA = FindBestPoint(id.x, id.y - 1, id.z - 1);
-            tri1.vertexB = FindBestPoint(id.x, id.y, id.z - 1);
-            tri1.vertexC = FindBestPoint(id.x, id.y - 1, id.z);
-            tri1.type = faceType;
-            tri1.Swap(solid2);
-
-            Triangle tri2;
-            tri2.vertexA = FindBestPoint(id.x, id.y, id.z - 1);
-            tri2.vertexB = FindBestPoint(id.x, id.y, id.z);
-            tri2.vertexC = FindBestPoint(id.x, id.y - 1, id.z);
-            tri2.type = faceType;
-            tri2.Swap(solid2);
-
-            triangles.Append(tri1);
-            triangles.Append(tri2);
+                    if (!isBelowSurface(type1, density1)) {
+                        faces.Append(MakeFace(id, id1, dir, faceType));
+                    }
+                }
+            }
         }
     }
 }

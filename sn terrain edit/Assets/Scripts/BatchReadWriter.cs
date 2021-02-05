@@ -200,6 +200,8 @@ public class BatchReadWriter : MonoBehaviour
     public bool WriteBatch(Vector3 batchIndex, Octree[,,] octrees) { 
         string batchname = string.Format("\\compiled-batch-{0}-{1}-{2}.optoctrees", batchIndex.x, batchIndex.y, batchIndex.z);
         busy = true;
+        
+        Debug.Log($"Writing {batchname} to {Globals.get.batchOutputPath}");
 
         BinaryWriter writer = new BinaryWriter(File.Open(Globals.get.batchOutputPath + batchname, FileMode.OpenOrCreate));
         writer.Write(4);
