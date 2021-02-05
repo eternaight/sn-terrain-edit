@@ -137,18 +137,13 @@ public class VoxelMesh : MonoBehaviour
 
             CheckCopyOctreeSides();
 
-            bool old = true;
             List<Mesh> containerMeshes;
 
             byte[] tempDensities;
             byte[] tempTypes;
             grid.GetFullGrids(out tempDensities, out tempTypes);
             
-            if (old) {
-                containerMeshes = MeshBuilder.builder.MeshFromPoints(tempDensities, tempTypes, grid.fullGridDim, offset);
-            } else {
-                containerMeshes = MeshBuilderUWE.builder.ComputeMesh(tempDensities, tempTypes, grid.fullGridDim.x, offset);
-            }
+            containerMeshes = MeshBuilder.builder.MeshFromPoints(tempDensities, tempTypes, grid.fullGridDim, offset);
 
             // update data
             if (containerMeshes.Count > 0) {
