@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -103,6 +103,17 @@ public class MeshBuilder : MonoBehaviour
 
         faceBuffer.GetData (faces, 0, 0, numFaces);
 
+        // calculate vertex positions
+        VoxelVertex[] verticesOfNodes = new VoxelVertex[size.x * size.y * size.z];
+
+        foreach (Face meshFace in faces) {
+            for (int v = 0; v < 4; v++) {
+                Vector3 dcCube = meshFace[v];
+                if (dcCube.x >= 0 && dcCube.x < 34 && dcCube.y >= 0 && dcCube.y < 34 && dcCube.z >= 0 && dcCube.z < 34)
+                    verticesOfNodes[Globals.LinearIndex((int)dcCube.x, (int)dcCube.y, (int)dcCube.z, size)].AddNeigFace(meshFace);
+            }
+        }
+
         // Segmenting geometry into separate meshes (to overcome vertex limit)
         
         List<Mesh> meshes = new List<Mesh>();
@@ -111,29 +122,27 @@ public class MeshBuilder : MonoBehaviour
         List<int> meshTriangles = new List<int>();
         Vector2[] meshUVS = new Vector2[numFaces * 4];
 
-        Int64 countVertices = 0;
-
-        int maxTris = 21844;
+        int maxFaces = 10922;
         int facesRemaining = numFaces;
 
-        Vector3 vertexOffsetSum = Vector3.one * 0.5f + offset;
-        bool useCoreDensityOffset = true;
-        if (useCoreDensityOffset) vertexOffsetSum -= Vector3.one;
+        Vector3 vertexOffsetSum = Vector3.one * -0.5f + offset;
 
         while (facesRemaining > 0) {
 
-            int nextFacePool = Math.Min(facesRemaining, maxTris * 2);
+            int nextFacePool = Math.Min(facesRemaining, maxFaces);
 
             for (int i = 0; i < nextFacePool; i++) {
 
                 // for each face:
-                int faceIndex = i + maxTris * 2 * meshes.Count;
-                int faceType = faces[faceIndex].type;
+                int faceIndex = i + maxFaces * meshes.Count;
 
-                vertices[i * 4] =     faces[faceIndex][0] + offset;
-                vertices[i * 4 + 1] = faces[faceIndex][1] + offset;
-                vertices[i * 4 + 2] = faces[faceIndex][2] + offset;
-                vertices[i * 4 + 3] = faces[faceIndex][3] + offset;
+                Face faceNow = faces[faceIndex];
+                if (!faceNow.IsPartOfMesh()) continue;
+                
+                for (int v = 0; v < 4; v++) {
+                    //vertices[i * 4 + v] = faceNow[v] + vertexOffsetSum;
+                    vertices[i * 4 + v] = verticesOfNodes[Globals.LinearIndex((int)faceNow[v].x, (int)faceNow[v].y, (int)faceNow[v].z, size)].ComputePos() + vertexOffsetSum;
+                }
                 
                 // A, B, C, A, C, D
                 meshTriangles.Add(i * 4);
@@ -143,6 +152,7 @@ public class MeshBuilder : MonoBehaviour
                 meshTriangles.Add(i * 4 + 2);
                 meshTriangles.Add(i * 4 + 3);
 
+                int faceType = faceNow.type;
                 meshUVS[i * 4] =     new Vector2((faceType % 16)/16f, (faceType / 16)/16f);
                 meshUVS[i * 4 + 1] = new Vector2((faceType % 16)/16f, (faceType / 16)/16f);
                 meshUVS[i * 4 + 2] = new Vector2((faceType % 16)/16f, (faceType / 16)/16f);
@@ -158,7 +168,6 @@ public class MeshBuilder : MonoBehaviour
 
             facesRemaining -= nextFacePool;
             meshes.Add(mesh);
-            countVertices += mesh.vertexCount;
         }
         return meshes;
     } 
@@ -185,7 +194,9 @@ public class MeshBuilder : MonoBehaviour
 
     struct Face {
         public Vector3 a, b, c, d;
+        public Vector3 surfaceIntersection;
         public int type;
+        public int dir;
         public Vector3 this [int i] {
             get {
                 switch (i) {
@@ -205,7 +216,36 @@ public class MeshBuilder : MonoBehaviour
         /// Returns stride of one face for Compute shaders
         ///</summary>
         public static int GetStride() {
-            return sizeof (float) * 3 * 4 + sizeof(int);
+            return sizeof(float) * 3 * 5 + sizeof(int) * 2;
         }
+
+        public bool IsPartOfMesh() {
+            return IsVertexPartOfMesh(0) && IsVertexPartOfMesh(1) && IsVertexPartOfMesh(2) && IsVertexPartOfMesh(3);
+        }
+        bool IsVertexPartOfMesh(int i) {
+            return this[i].x > 0 && this[i].y > 0 && this[i].z > 0 && this[i].x < 34 && this[i].y < 34 && this[i].z < 34;
+        }
+    }
+
+    struct VoxelVertex {
+        List<Face> adjFaces;
+
+        public Vector3 ComputePos() {
+
+            Vector3 res = Vector3.zero;
+            int count = 0;
+
+            for (int i = 0; i < adjFaces.Count; ++i) {
+                res += adjFaces[i].surfaceIntersection;
+                count++;
+            }
+
+            return res / count;
+        }
+
+        public void AddNeigFace(Face _face) {
+            if (adjFaces == null) adjFaces = new List<Face>();
+            adjFaces.Add(_face);
+        } 
     }
 }

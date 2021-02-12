@@ -153,91 +153,138 @@ public class VoxelMesh : MonoBehaviour
             meshObj.AddComponent<MeshCollider>();
         }
 
-
-        // This method attaches data from neighbouring octrees to bridge the gaps between them
-        // TODO: Don't like this approach, think of a better thing
         public void CheckCopyOctreeSides() {
             VoxelMesh voxelMesh = meshObj.transform.parent.GetComponent<VoxelMesh>();
-
-            if (octreeIndex.x != 4)
-                grid.AddPadding(voxelMesh.octreeContainers[Globals.LinearIndex(octreeIndex.x + 1, octreeIndex.y, octreeIndex.z, 5)].grid, 0);
-            if (octreeIndex.y != 4)
-                grid.AddPadding(voxelMesh.octreeContainers[Globals.LinearIndex(octreeIndex.x, octreeIndex.y + 1, octreeIndex.z, 5)].grid, 1);
-            if (octreeIndex.z != 4)
-                grid.AddPadding(voxelMesh.octreeContainers[Globals.LinearIndex(octreeIndex.x, octreeIndex.y, octreeIndex.z + 1, 5)].grid, 2);
-
-            if (octreeIndex.x != 0)
-                grid.AddPadding(voxelMesh.octreeContainers[Globals.LinearIndex(octreeIndex.x - 1, octreeIndex.y, octreeIndex.z, 5)].grid, 3);
-            if (octreeIndex.y != 0)
-                grid.AddPadding(voxelMesh.octreeContainers[Globals.LinearIndex(octreeIndex.x, octreeIndex.y - 1, octreeIndex.z, 5)].grid, 4);
-            if (octreeIndex.z != 0)
-                grid.AddPadding(voxelMesh.octreeContainers[Globals.LinearIndex(octreeIndex.x, octreeIndex.y, octreeIndex.z - 1, 5)].grid, 5);
-        }
-    }
-}
-
-public class VoxelGrid {
-    public byte[,,] densityGrid;
-    public byte[,,] typeGrid;
-    public Vector3Int fullGridDim;
-
-    public VoxelGrid(byte[,,] _density, byte[,,] _types, Vector3Int dimensions) {
-        
-        int fullSide = 32 + 2;
-        densityGrid = new byte[fullSide, fullSide, fullSide];
-        typeGrid = new byte[fullSide, fullSide, fullSide];;
-        
-        for (int z = 0; z < 32; z++) {
-            for (int y = 0; y < 32; y++) {
-                for (int x = 0; x < 32; x++) {
-                    densityGrid[x + 1, y + 1, z + 1] = _density[x, y, z];
-                    typeGrid[x + 1, y + 1, z + 1] = _types[x, y, z];
-                }
-            }
-        }
-
-        fullGridDim = Vector3Int.one * fullSide;
-    }
-
-    public void AddPadding(VoxelGrid fromGrid, int side) {
-        
-        int dir = side % 3;
-        bool reverse = side / 3 == 1;
-
-        if (dir == 0) {
-            int myX = (reverse ? 0 : 33);
-            int fromX = (reverse ? 32 : 1);
-            for (int y = 1; y < 33; ++y) {
-                for (int z = 1; z < 33; ++z) {
-                    densityGrid[myX, y, z] = fromGrid.densityGrid[fromX, y, z];
-                    typeGrid[myX, y, z] = fromGrid.typeGrid[fromX, y, z];
-                }
-            }
-        }
-        else if (dir == 1) {
-            int myY = (reverse ? 0 : 33);
-            int fromY = (reverse ? 32 : 1);
-            for (int x = 1; x < 33; ++x) {
-                for (int z = 1; z < 33; ++z) {
-                    densityGrid[x, myY, z] = fromGrid.densityGrid[x, fromY, z];
-                    typeGrid[x, myY, z] = fromGrid.typeGrid[x, fromY, z];
-                }
-            }
-        }
-        else if (dir == 2) {
-            int myZ = (reverse ? 0 : 33);
-            int fromZ = (reverse ? 32 : 1);
-            for (int x = 1; x < 33; ++x) {
-                for (int y = 1; y < 33; ++y) {
-                    densityGrid[x, y, myZ] = fromGrid.densityGrid[x, y, fromZ];
-                    typeGrid[x, y, myZ] = fromGrid.typeGrid[x, y, fromZ];
-                }
-            }
+            grid.AddPaddingFull(voxelMesh, octreeIndex);
         }
     }
 
-    public void GetFullGrids(out byte[] fullDensityGrid, out byte[] fullTypeGrid) {
-        fullDensityGrid =   Globals._3DArrayTo1D(densityGrid);
-        fullTypeGrid =      Globals._3DArrayTo1D(typeGrid);
+    public class VoxelGrid {
+        public byte[,,] densityGrid;
+        public byte[,,] typeGrid;
+        public Vector3Int fullGridDim;
+
+        public VoxelGrid(byte[,,] _coreDensity, byte[,,] _coreTypes, Vector3Int dimensions) {
+            
+            int fullSide = 32 + 2;
+            densityGrid = new byte[fullSide, fullSide, fullSide];
+            typeGrid = new byte[fullSide, fullSide, fullSide];;
+            
+            int so = 1;
+
+            for (int z = 0; z < 32; z++) {
+                for (int y = 0; y < 32; y++) {
+                    for (int x = 0; x < 32; x++) {
+                        densityGrid[x + so, y + so, z + so] = _coreDensity[x, y, z];
+                        typeGrid[x + so, y + so, z + so] = _coreTypes[x, y, z];
+                    }
+                }
+            }
+
+            fullGridDim = Vector3Int.one * fullSide;
+        }
+
+        public void AddPaddingFull(VoxelMesh mesh, Vector3Int containerIndex) {
+
+            for (int z = 0; z < 34; z++) {
+                for (int y = 0; y < 34; y++) {
+                    for (int x = 0; x < 34; x++) {
+                        
+                        Vector3Int neigIndex = containerIndex + CoreGridFromVertex(x, y, z);
+                        if (GridExists(neigIndex)) {
+                            VoxelGrid neigGrid = mesh.octreeContainers[Globals.LinearIndex(neigIndex.x, neigIndex.y, neigIndex.z, 5)].grid;
+
+                            Vector3Int sample = new Vector3Int(x, y, z);
+                            if (x == 0) sample.x = 32;
+                            else if (x == 33) sample.x = 1;
+                            
+                            if (y == 0) sample.y = 32;
+                            else if (y == 33) sample.y = 1;
+
+                            if (z == 0) sample.z = 32;
+                            else if (z == 33) sample.z = 1;
+
+                            densityGrid[x, y, z] =  neigGrid.densityGrid[sample.x, sample.y, sample.z];
+                            typeGrid[x, y, z] =     neigGrid.typeGrid[sample.x, sample.y, sample.z];
+                        }
+                    }
+                }
+            }
+        }
+
+        Vector3Int CoreGridFromVertex(int x, int y, int z) {
+            Vector3Int offset = Vector3Int.zero;
+            if (x == 0) offset.x = -1;
+            else if (x == 33) offset.x = 1;
+
+            if (y == 0) offset.y = -1;
+            else if (y == 33) offset.y = 1;
+
+            if (z == 0) offset.z = -1;
+            else if (z == 33) offset.z = 1;
+
+            return offset;
+        }
+
+        static bool GridExists(Vector3Int gridIndex) {
+            return (gridIndex.x >= 0 && gridIndex.x < 5 && gridIndex.y >= 0 && gridIndex.y < 5 && gridIndex.z >= 0 && gridIndex.z < 5);
+        }
+
+        public void AddPadding(VoxelGrid fromGrid, int side) {
+            
+            int dir = side % 3;
+            bool reverse = side / 3 == 1;
+            
+            int fullStart = 0, fullEnd = 34;
+            int coreEnd = 32, coreStart = 2;
+
+            if (dir == 0) {
+                int myX = (reverse ? fullStart : fullEnd);
+                int fromX = (reverse ? coreEnd : coreStart);
+
+                for (int y = 2; y < 34; ++y) {
+                    for (int z = 2; z < 34; ++z) {
+                        densityGrid[myX, y, z] = fromGrid.densityGrid[fromX, y, z];
+                        typeGrid[myX, y, z] = fromGrid.typeGrid[fromX, y, z];
+
+                        densityGrid[myX + 1, y, z] = fromGrid.densityGrid[fromX + 1, y, z];
+                        typeGrid[myX + 1, y, z] = fromGrid.typeGrid[fromX + 1, y, z];
+                    }
+                }
+            }
+            else if (dir == 1) {
+                int myY = (reverse ? fullStart : fullEnd);
+                int fromY = (reverse ? coreEnd : coreStart);
+
+                for (int x = 2; x < 34; ++x) {
+                    for (int z = 2; z < 34; ++z) {
+                        densityGrid[x, myY, z] = fromGrid.densityGrid[x, fromY, z];
+                        typeGrid[x, myY, z] = fromGrid.typeGrid[x, fromY, z];
+                        
+                        densityGrid[x, myY + 1, z] = fromGrid.densityGrid[x, fromY + 1, z];
+                        typeGrid[x, myY + 1, z] = fromGrid.typeGrid[x, fromY + 1, z];
+                    }
+                }
+            }
+            else if (dir == 2) {
+                int myZ = (reverse ? fullStart : fullEnd);
+                int fromZ = (reverse ? coreEnd : coreStart);
+
+                for (int x = 2; x < 34; ++x) {
+                    for (int y = 2; y < 34; ++y) {
+                        densityGrid[x, y, myZ] = fromGrid.densityGrid[x, y, fromZ];
+                        typeGrid[x, y, myZ] = fromGrid.typeGrid[x, y, fromZ];
+                        
+                        densityGrid[x, y, myZ + 1] = fromGrid.densityGrid[x, y, fromZ + 1];
+                        typeGrid[x, y, myZ + 1] = fromGrid.typeGrid[x, y, fromZ + 1];
+                    }
+                }
+            }
+        }
+
+        public void GetFullGrids(out byte[] fullDensityGrid, out byte[] fullTypeGrid) {
+            fullDensityGrid =   Globals._3DArrayTo1D(densityGrid);
+            fullTypeGrid =      Globals._3DArrayTo1D(typeGrid);
+        }
     }
 }

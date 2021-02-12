@@ -23,6 +23,7 @@ struct Face {
     float3 vertexB;
     float3 vertexC;
     float3 vertexD;
+    float3 surfaceIntersection;
     int type;
 };
 
@@ -45,52 +46,18 @@ int linearIndex(uint x, uint y, uint z) {
 bool checkBoundsAll(int3 pos) {
     return pos.x >= 0 && pos.y >= 0 && pos.z >= 0 && pos.x < numPointsX && pos.y < numPointsY && pos.z < numPointsZ;
 }
-bool checkBoundsOctree(int3 pos) {
-    return pos.x > 0 && pos.y > 0 && pos.z > 0 && pos.x < 33 && pos.y < 33 && pos.z < 33;
+bool checkBoundsOuterMesh(int3 pos) {
+    return pos.x > 0 && pos.y > 0 && pos.z > 0 && pos.x < 35 && pos.y < 35 && pos.z < 35;
 }
 
-float3 FindBestPoint(int x, int y, int z) {
-
-    float3 pos = float3(0, 0, 0);
-    int count = 0;
-    
-    float4 cubeCorners[8] = {
-        float4(x, y, z,             decodeDensity(density[linearIndex(x, y, z)])),
-        float4(x + 1, y, z,         decodeDensity(density[linearIndex(x + 1, y, z)])),
-        float4(x + 1, y + 1, z,     decodeDensity(density[linearIndex(x + 1, y + 1, z)])),
-        float4(x, y + 1, z,         decodeDensity(density[linearIndex(x, y + 1, z)])),
-        float4(x, y, z + 1,         decodeDensity(density[linearIndex(x, y, z + 1)])),
-        float4(x + 1, y, z + 1,     decodeDensity(density[linearIndex(x + 1, y, z + 1)])),
-        float4(x + 1, y + 1, z + 1, decodeDensity(density[linearIndex(x + 1, y + 1, z + 1)])),
-        float4(x, y + 1, z + 1,     decodeDensity(density[linearIndex(x, y + 1, z + 1)]))
-    };
-
-    return interpolateHalf(cubeCorners[0], cubeCorners[6]) + meshOffset;
-
-    // find sum of all MC edge points
-    for (int k = 0; k < 12; k++) {
-        bool solid1 = cubeCorners[cornerIndexAFromEdge[k]].w > 0;
-        bool solid2 = cubeCorners[cornerIndexBFromEdge[k]].w > 0;
-
-        if (solid1 != solid2) {
-            pos += interpolateHalf(cubeCorners[cornerIndexAFromEdge[k]], cubeCorners[cornerIndexBFromEdge[k]]);
-            count++;
-        }
-    }
-
-    if (count > 0) pos /= count;
-
-    return (pos + meshOffset);
-}
-
-Face MakeFace(int3 p1, int3 p2, int dir, int type) {
+Face MakeFace(int3 p1, int3 p2, int d1, int d2, int dir, int type) {
     Face face;
     face.type = type;
 
     // For each edge that exhibits a sign change,
     // generate a quad connecting the minimizing vertices of the four cubes containing the edge.
 
-    float3 cube1Index, cube2Index, cube3Index, cube4Index; 
+    int3 cube1Index, cube2Index, cube3Index, cube4Index; 
 
     int3 pMin = int3(min(p1.x, p2.x), min(p1.y, p2.y), min(p1.z, p2.z));
     
@@ -98,52 +65,74 @@ Face MakeFace(int3 p1, int3 p2, int dir, int type) {
         default:
         case 0:
             // p1->p2 = y+
-            cube1Index = float3(pMin.x - 1, pMin.y, pMin.z - 1);
-            cube2Index = float3(pMin.x - 1, pMin.y, pMin.z);
-            cube3Index = float3(pMin.x, pMin.y, pMin.z);
-            cube4Index = float3(pMin.x, pMin.y, pMin.z - 1);
+            cube1Index = int3(pMin.x - 1, pMin.y, pMin.z - 1);
+            cube2Index = int3(pMin.x - 1, pMin.y, pMin.z);
+            cube3Index = int3(pMin.x, pMin.y, pMin.z);
+            cube4Index = int3(pMin.x, pMin.y, pMin.z - 1);
             break;
         case 1:
             // p1->p2 = y-
-            cube1Index = float3(pMin.x - 1, pMin.y, pMin.z - 1);
-            cube2Index = float3(pMin.x, pMin.y, pMin.z - 1);
-            cube3Index = float3(pMin.x, pMin.y, pMin.z);
-            cube4Index = float3(pMin.x - 1, pMin.y, pMin.z);
+            cube1Index = int3(pMin.x - 1, pMin.y, pMin.z - 1);
+            cube2Index = int3(pMin.x, pMin.y, pMin.z - 1);
+            cube3Index = int3(pMin.x, pMin.y, pMin.z);
+            cube4Index = int3(pMin.x - 1, pMin.y, pMin.z);
             break;
         case 2:
             // p1->p2 = x+
-            cube1Index = float3(pMin.x, pMin.y - 1, pMin.z - 1);
-            cube2Index = float3(pMin.x, pMin.y, pMin.z - 1);
-            cube3Index = float3(pMin.x, pMin.y, pMin.z);
-            cube4Index = float3(pMin.x, pMin.y - 1, pMin.z);
+            cube1Index = int3(pMin.x, pMin.y - 1, pMin.z - 1);
+            cube2Index = int3(pMin.x, pMin.y, pMin.z - 1);
+            cube3Index = int3(pMin.x, pMin.y, pMin.z);
+            cube4Index = int3(pMin.x, pMin.y - 1, pMin.z);
             break;
         case 3:
             // p1->p2 = x-
-            cube1Index = float3(pMin.x, pMin.y - 1, pMin.z - 1);
-            cube2Index = float3(pMin.x, pMin.y - 1, pMin.z);
-            cube3Index = float3(pMin.x, pMin.y, pMin.z);
-            cube4Index = float3(pMin.x, pMin.y, pMin.z - 1);
+            cube1Index = int3(pMin.x, pMin.y - 1, pMin.z - 1);
+            cube2Index = int3(pMin.x, pMin.y - 1, pMin.z);
+            cube3Index = int3(pMin.x, pMin.y, pMin.z);
+            cube4Index = int3(pMin.x, pMin.y, pMin.z - 1);
             break;
         case 4:
             // p1->p2 = z+
-            cube1Index = float3(pMin.x - 1, pMin.y - 1, pMin.z);
-            cube2Index = float3(pMin.x, pMin.y - 1, pMin.z);
-            cube3Index = float3(pMin.x, pMin.y, pMin.z);
-            cube4Index = float3(pMin.x - 1, pMin.y, pMin.z);
+            cube1Index = int3(pMin.x - 1, pMin.y - 1, pMin.z);
+            cube2Index = int3(pMin.x, pMin.y - 1, pMin.z);
+            cube3Index = int3(pMin.x, pMin.y, pMin.z);
+            cube4Index = int3(pMin.x - 1, pMin.y, pMin.z);
             break;
         case 5:
             // p1->p2 = z-
-            cube1Index = float3(pMin.x - 1, pMin.y - 1, pMin.z);
-            cube2Index = float3(pMin.x - 1, pMin.y,     pMin.z);
-            cube3Index = float3(pMin.x, pMin.y,         pMin.z);
-            cube4Index = float3(pMin.x, pMin.y - 1,     pMin.z);
+            cube1Index = int3(pMin.x - 1, pMin.y - 1, pMin.z);
+            cube2Index = int3(pMin.x - 1, pMin.y,     pMin.z);
+            cube3Index = int3(pMin.x, pMin.y,         pMin.z);
+            cube4Index = int3(pMin.x, pMin.y - 1,     pMin.z);
             break;
     }
 
-    face.vertexA = cube1Index;
-    face.vertexB = cube2Index;
-    face.vertexC = cube3Index;
-    face.vertexD = cube4Index;
+    float3 delta = (p2 - p1);
+    float length = sqrt(delta.x * delta.x + delta.y * delta.y + delta.z * delta.z);
+    float3 normalized = delta / length;
+
+    float3 intx;
+    if (d1 == d2 && d1 == 0) intx = (p1 + p2) / (uint)2;
+    else if (d1 == 0) intx = decodeDensity(d2) * normalized + p2;
+    else if (d2 == 0) intx = decodeDensity(d1) * normalized + p1;
+    else {
+        float t;
+        float density1 = decodeDensity(d1);
+        float density2 = decodeDensity(d2);
+        if (density1 != density2) {
+            t = (-density2) / (density1 - density2);
+        }
+        intx = (1 - t) * p2 + t * p1;
+    }
+
+    //adding a vector.one - probably a hack
+    // TODO: why does this work?
+    int3 onev = int3(1, 1, 1);
+    face.vertexA = cube1Index + onev;
+    face.vertexB = cube2Index + onev;
+    face.vertexC = cube3Index + onev;
+    face.vertexD = cube4Index + onev;
+    face.surfaceIntersection = intx;
 
     return face;
 }
@@ -165,7 +154,7 @@ int FindBestType(uint x, uint y, uint z) {
 [numthreads(numthreads, numthreads, numthreads)]
 void DualContour(int3 id : SV_DispatchThreadID) {
 
-    if (checkBoundsOctree(id)) {
+    if (checkBoundsAll(id)) {
 
         // action per each cell
         int faceType = pointTypes[linearIndex(id.x, id.y, id.z)];
@@ -176,14 +165,12 @@ void DualContour(int3 id : SV_DispatchThreadID) {
                 int3 dirV = directionToPos[dir];
                 int3 id1 = int3(id.x + dirV.x, id.y + dirV.y, id.z + dirV.z);
 
-                int density1, type1;
-
                 if (checkBoundsAll(id1)) {
-                    density1 = density[linearIndex(id1.x, id1.y, id1.z)];
-                    type1 = pointTypes[linearIndex(id1.x, id1.y, id1.z)];
+                    int density1 = density[linearIndex(id1.x, id1.y, id1.z)];
+                    int type1 = pointTypes[linearIndex(id1.x, id1.y, id1.z)];
 
                     if (!isBelowSurface(type1, density1)) {
-                        faces.Append(MakeFace(id, id1, dir, faceType));
+                        faces.Append(MakeFace(id, id1, faceSignedDist, density1, dir, faceType));
                     }
                 }
             }

@@ -416,6 +416,9 @@ public struct OctNodeData {
         }
         signedDist = (byte)(val * 126 + 126);
     }
+    public static float DecodeDensity(byte densityByte) {
+        return (densityByte - 126) / 126f;
+    }
 
     public override string ToString() {
         return $"t: {type}, d: {signedDist}, c: {childPosition}";
