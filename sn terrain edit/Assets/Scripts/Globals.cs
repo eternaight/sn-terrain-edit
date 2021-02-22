@@ -17,6 +17,8 @@ public class Globals : MonoBehaviour {
     public const string outputPathKey = "outputPath";
     public const string gameToBatchPostfix = "\\Subnautica_Data\\StreamingAssets\\SNUnmanagedData\\Build18\\CompiledOctreesCache";
 
+    int type = 0;
+
     void Awake() {
         get = this;
         GenerateColorMap();
@@ -58,7 +60,7 @@ public class Globals : MonoBehaviour {
             batchMat.color = Color.white;
             batchMat.SetTexture("_MainTex", colorMap);
         } else {
-            batchMat.color = Color.grey;
+            batchMat.color = ColorFromType(Globals.get.type);
             batchMat.SetTexture("_MainTex", null);
         }
     }
@@ -109,5 +111,9 @@ public class Globals : MonoBehaviour {
         }
 
         return new_array;
+    }
+
+    public static void SetMatBlockType(byte blockType) {
+        Globals.get.type = blockType;
     }
 }

@@ -54,7 +54,6 @@ public class VoxelMesh : MonoBehaviour
                 octreeContainers[k].DensityAction_Sphere(sphereOrigin, sphereRadius, mode);
                 octreeContainers[k].UpdateMesh();
             }
-
         }
     }
 
@@ -64,10 +63,10 @@ public class VoxelMesh : MonoBehaviour
                 for (int x = 0; x < 5; x++) {
                     PointContainer container = octreeContainers[Globals.LinearIndex(x, y, z, 5)];
 
-                    byte[] tempDensity;
-                    byte[] tempTypes;
-                    container.grid.GetFullGrids(out tempDensity, out tempTypes);
-                    rootNodes[z, y, x].DeRasterizeGrid(tempDensity, tempTypes, pointsPerOctreeAxis);
+                    //byte[] tempDensity;
+                    //byte[] tempTypes;
+                    //container.grid.GetFullGrids(out tempDensity, out tempTypes);
+                    rootNodes[z, y, x].DeRasterizeGrid(container.grid.densityGrid, container.grid.typeGrid, 34);
                 }
             }
         }
@@ -78,6 +77,7 @@ public class VoxelMesh : MonoBehaviour
         Vector3Int octreeIndex;
 
         // density data
+        public Octree octree;
         public VoxelGrid grid;
         
         // other objects
@@ -85,32 +85,30 @@ public class VoxelMesh : MonoBehaviour
         GameObject meshObj;
 
 
-        public PointContainer(Transform voxelandTransform, Octree octree, Vector3Int containerIndex) {
+        public PointContainer(Transform voxelandTransform, Octree _octree, Vector3Int containerIndex) {
             
-            int side = pointsPerOctreeAxis;
             octreeIndex = containerIndex;
-
-            Vector3Int pointsPerAxis = new Vector3Int(side, side, side);
-            
-            // This adds border points to have a closed mesh - may cause problems if there's more than 1 batch
-            // TODO: add support for 2+ batches (add border points only on border batches?)
-            // if (octreeIndex.x == 4) pointsPerAxis.x += 1;
-            // if (octreeIndex.y == 4) pointsPerAxis.y += 1;
-            // if (octreeIndex.z == 4) pointsPerAxis.z += 1;
 
             Vector3 center = octreeIndex * 32 + Vector3.one * 16;
             bounds = new Bounds(center, Vector3.one * 32);
+            
+            octree = _octree;
+            UpdateGrid();
 
+            CreateMeshObject(voxelandTransform);
+        }
+        public void UpdateGrid() {
             byte[] tempTypes = new byte[32 * 32 * 32];
             byte[] tempDensities = new byte[32 * 32 * 32];
+
             octree.Rasterize(tempDensities, tempTypes, 32);
+
+            Vector3Int pointsPerAxis = new Vector3Int(32, 32, 32);
 
             grid = new VoxelGrid(Globals._1DArrayTo3D(tempDensities, Vector3Int.one * 32), 
                                  Globals._1DArrayTo3D(tempTypes, Vector3Int.one * 32),
                                  pointsPerAxis);
-
-            CreateMeshObject(voxelandTransform);
-        }
+        } 
 
         void CreateMeshObject(Transform voxelandTransform) {
             meshObj = new GameObject("VoxelMesh");
@@ -123,12 +121,9 @@ public class VoxelMesh : MonoBehaviour
 
         public void DensityAction_Sphere(Vector3 sphereOrigin, float sphereRadius, BrushMode mode) {
 
-            throw new System.NotImplementedException();
+            SphereDensitySetting setting = new SphereDensitySetting() { origin = sphereOrigin, radius = sphereRadius };
 
-            //SphereDensitySetting setting = new SphereDensitySetting() { origin = sphereOrigin, radius = sphereRadius };
-
-            //octree.ApplyDensityFunction(setting);
-            //UpdateMesh();
+            grid.ApplyDensityFunction(setting, octreeIndex * 32);
         }
 
         public void UpdateMesh() {
@@ -143,14 +138,19 @@ public class VoxelMesh : MonoBehaviour
             byte[] tempTypes;
             grid.GetFullGrids(out tempDensities, out tempTypes);
             
-            containerMeshes = MeshBuilder.builder.MeshFromPoints(tempDensities, tempTypes, grid.fullGridDim, offset);
+            containerMeshes = MeshBuilder.builder.GenerateMesh(tempDensities, tempTypes, grid.fullGridDim, offset);
 
             // update data
             if (containerMeshes.Count > 0) {
                 meshObj.GetComponent<MeshFilter>().sharedMesh = containerMeshes[0];
             }
 
-            meshObj.AddComponent<MeshCollider>();
+            MeshCollider coll = meshObj.GetComponent<MeshCollider>();
+            if (!coll) {
+                meshObj.AddComponent<MeshCollider>();
+            } else {
+                coll.sharedMesh = containerMeshes[0];
+            }
         }
 
         public void CheckCopyOctreeSides() {
@@ -285,6 +285,34 @@ public class VoxelMesh : MonoBehaviour
         public void GetFullGrids(out byte[] fullDensityGrid, out byte[] fullTypeGrid) {
             fullDensityGrid =   Globals._3DArrayTo1D(densityGrid);
             fullTypeGrid =      Globals._3DArrayTo1D(typeGrid);
+        }
+
+        public void ApplyDensityFunction(SphereDensitySetting setting, Vector3 gridOrigin) {
+            for (int z = 1; z < 33; z++) {
+                for (int y = 1; y < 33; y++) {
+                    for (int x = 1; x < 33; x++) {
+                        byte oldDist = densityGrid[x, y, z], oldType = typeGrid[x, y, z];
+
+                        float functionDensity = setting.SphereDensity(new Vector3(x, y, z) + gridOrigin);
+                        float clampedFunctionDensity = Mathf.Clamp(functionDensity, -1, 1);
+                        byte encodedFunctionDensity = OctNodeData.EncodeDensity(clampedFunctionDensity);
+
+                        byte compareDist = oldDist;
+                        if (oldDist == 0 && oldType != 0) compareDist = byte.MaxValue;
+
+                        if (encodedFunctionDensity > compareDist) {
+                            // change value
+                            bool nodeIsFar = functionDensity != clampedFunctionDensity;
+                            if (nodeIsFar) encodedFunctionDensity = 0;
+
+                            byte newType = clampedFunctionDensity > 0 ? Brush.selectedType : (byte)0;
+
+                            densityGrid[x, y, z] = encodedFunctionDensity;
+                            typeGrid[x, y, z] = newType;
+                        }
+                    }
+                }
+            }
         }
     }
 }

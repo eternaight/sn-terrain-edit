@@ -87,7 +87,6 @@ public class BatchReadWriter : MonoBehaviour
 
                 curr_pos += (nodeCount * 4) + 2;
                 countOctrees++; 
-                // yield return null;
             }
 
             _batch.SetOctrees(octrees);

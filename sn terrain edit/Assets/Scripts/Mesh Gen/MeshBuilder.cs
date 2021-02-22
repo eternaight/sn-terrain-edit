@@ -61,7 +61,7 @@ public class MeshBuilder : MonoBehaviour
         }
     }
 
-    public List<Mesh> MeshFromPoints(byte[] densityGrid, byte[] typeGrid, Vector3Int size, Vector3 offset) {
+    public List<Mesh> GenerateMesh(byte[] densityGrid, byte[] typeGrid, Vector3Int size, Vector3 offset) {
 
         // Setting data inside shader
 
@@ -105,65 +105,66 @@ public class MeshBuilder : MonoBehaviour
 
         // calculate vertex positions
         VoxelVertex[] verticesOfNodes = new VoxelVertex[size.x * size.y * size.z];
+        List<Vector3> vertices = new List<Vector3>();
+        List<Vector2> vertexUVs = new List<Vector2>();
 
         foreach (Face meshFace in faces) {
             for (int v = 0; v < 4; v++) {
                 Vector3 dcCube = meshFace[v];
-                if (dcCube.x >= 0 && dcCube.x < 34 && dcCube.y >= 0 && dcCube.y < 34 && dcCube.z >= 0 && dcCube.z < 34)
-                    verticesOfNodes[Globals.LinearIndex((int)dcCube.x, (int)dcCube.y, (int)dcCube.z, size)].AddNeigFace(meshFace);
+                if (dcCube.x >= 0 && dcCube.x < 34 && dcCube.y >= 0 && dcCube.y < 34 && dcCube.z >= 0 && dcCube.z < 34) {
+                    int i = Globals.LinearIndex((int)dcCube.x, (int)dcCube.y, (int)dcCube.z, size);
+                    verticesOfNodes[i].AddNeigFace(meshFace);
+                    verticesOfNodes[i].isSet = true;
+                }
             }
         }
 
-        // Segmenting geometry into separate meshes (to overcome vertex limit)
-        
-        List<Mesh> meshes = new List<Mesh>();
+        Vector3 vertexOffsetSum = Vector3.one * -0.5f + offset;
+        for (int i = 0; i < verticesOfNodes.Length; i++) { 
+            if (verticesOfNodes[i].isSet) {
+                verticesOfNodes[i].vertIndex = vertices.Count;
+                vertices.Add(verticesOfNodes[i].ComputePos() + vertexOffsetSum);
+                vertexUVs.Add(BlockTypeToUV(verticesOfNodes[i].GetBlockType()));
+            }
+        }
 
-        Vector3[] vertices = new Vector3[numFaces * 4];
+
+        // Segmenting geometry into separate meshes (to overcome vertex limit)
+        List<Mesh> meshes = new List<Mesh>();
         List<int> meshTriangles = new List<int>();
-        Vector2[] meshUVS = new Vector2[numFaces * 4];
 
         int maxFaces = 10922;
         int facesRemaining = numFaces;
-
-        Vector3 vertexOffsetSum = Vector3.one * -0.5f + offset;
 
         while (facesRemaining > 0) {
 
             int nextFacePool = Math.Min(facesRemaining, maxFaces);
 
             for (int i = 0; i < nextFacePool; i++) {
-
-                // for each face:
-                int faceIndex = i + maxFaces * meshes.Count;
-
-                Face faceNow = faces[faceIndex];
+                Face faceNow = faces[i + maxFaces * meshes.Count];
                 if (!faceNow.IsPartOfMesh()) continue;
-                
-                for (int v = 0; v < 4; v++) {
-                    //vertices[i * 4 + v] = faceNow[v] + vertexOffsetSum;
-                    vertices[i * 4 + v] = verticesOfNodes[Globals.LinearIndex((int)faceNow[v].x, (int)faceNow[v].y, (int)faceNow[v].z, size)].ComputePos() + vertexOffsetSum;
-                }
+
+                int[] vertIndices = {
+                    Globals.LinearIndex((int)faceNow[0].x, (int)faceNow[0].y, (int)faceNow[0].z, size),
+                    Globals.LinearIndex((int)faceNow[1].x, (int)faceNow[1].y, (int)faceNow[1].z, size),
+                    Globals.LinearIndex((int)faceNow[2].x, (int)faceNow[2].y, (int)faceNow[2].z, size),
+                    Globals.LinearIndex((int)faceNow[3].x, (int)faceNow[3].y, (int)faceNow[3].z, size)
+                };
                 
                 // A, B, C, A, C, D
-                meshTriangles.Add(i * 4);
-                meshTriangles.Add(i * 4 + 1);
-                meshTriangles.Add(i * 4 + 2);
-                meshTriangles.Add(i * 4);
-                meshTriangles.Add(i * 4 + 2);
-                meshTriangles.Add(i * 4 + 3);
-
-                int faceType = faceNow.type;
-                meshUVS[i * 4] =     new Vector2((faceType % 16)/16f, (faceType / 16)/16f);
-                meshUVS[i * 4 + 1] = new Vector2((faceType % 16)/16f, (faceType / 16)/16f);
-                meshUVS[i * 4 + 2] = new Vector2((faceType % 16)/16f, (faceType / 16)/16f);
-                meshUVS[i * 4 + 3] = new Vector2((faceType % 16)/16f, (faceType / 16)/16f);
+                meshTriangles.Add(verticesOfNodes[vertIndices[0]].vertIndex);
+                meshTriangles.Add(verticesOfNodes[vertIndices[1]].vertIndex);
+                meshTriangles.Add(verticesOfNodes[vertIndices[2]].vertIndex);
+                meshTriangles.Add(verticesOfNodes[vertIndices[0]].vertIndex);
+                meshTriangles.Add(verticesOfNodes[vertIndices[2]].vertIndex);
+                meshTriangles.Add(verticesOfNodes[vertIndices[3]].vertIndex);
             }
         
             Mesh mesh = new Mesh();
-            mesh.vertices = vertices;
+            mesh.vertices = vertices.ToArray();
             mesh.triangles = meshTriangles.ToArray();
-            mesh.uv = meshUVS;
-
+            mesh.uv = vertexUVs.ToArray();
+            
             mesh.RecalculateNormals();
 
             facesRemaining -= nextFacePool;
@@ -171,6 +172,10 @@ public class MeshBuilder : MonoBehaviour
         }
         return meshes;
     } 
+
+    Vector2 BlockTypeToUV(int blockType) {
+        return new Vector2((blockType % 16)/16f, (blockType / 16)/16f);
+    }
 
     struct Triangle {
         public Vector3 a;
@@ -225,10 +230,15 @@ public class MeshBuilder : MonoBehaviour
         bool IsVertexPartOfMesh(int i) {
             return this[i].x > 0 && this[i].y > 0 && this[i].z > 0 && this[i].x < 34 && this[i].y < 34 && this[i].z < 34;
         }
+        public Vector3 GetNormal() {
+            return Vector3.Cross(this[0] - this[1], this[0] - this[3]).normalized;
+        }
     }
 
     struct VoxelVertex {
-        List<Face> adjFaces;
+        public List<Face> adjFaces;
+        public int vertIndex;
+        public bool isSet;
 
         public Vector3 ComputePos() {
 
@@ -247,5 +257,10 @@ public class MeshBuilder : MonoBehaviour
             if (adjFaces == null) adjFaces = new List<Face>();
             adjFaces.Add(_face);
         } 
+
+        public int GetBlockType() {
+            if (adjFaces == null) return 0;
+            return adjFaces[0].type;
+        }
     }
 }

@@ -37,6 +37,7 @@ public class Brush : MonoBehaviour
                 if (DoNextBrushStroke()) {
 
                     lastBrushTime = Time.time;
+                    Brush.selectedType = RegionLoader.loader.GetBatchLocal(0, 0, 0).mainBlockType;
 
                     if (hit.collider.gameObject.GetComponentInParent<VoxelMesh>()) {
                         hit.collider.gameObject.GetComponentInParent<VoxelMesh>().DensityAction_Sphere(hit.point, Brush.brushSize, mode);

@@ -8,7 +8,6 @@ public class Octree {
     
     public Vector3Int batchIndex;
     OctNode node;
-    List<OctNode> leafNodes;
     public int MaxDepth {
         get {
             return node.GetMaxDepth(0);
@@ -25,9 +24,6 @@ public class Octree {
         this.batchIndex = new Vector3Int(x, y, z);
         
         node = new OctNode(batchOrigin + new Vector3(x, y, z) * rootSize, rootSize);
-        node.rank = NodeRank.Root;
-
-        leafNodes = new List<OctNode>();
     }
 
     public OctNodeData GetNodeFromPos(Vector3 pos) {
@@ -46,8 +42,6 @@ public class Octree {
 
         int i = batchIndex.x * 25 + batchIndex.y * 5 + batchIndex.z;
         node.WriteData(data, 0);
-
-        ComputeLeafNodes();
     }
 
     public OctNodeData[] Read() {
@@ -65,10 +59,6 @@ public class Octree {
         return node.ContainsPoint(p);
     }
 
-    void ComputeLeafNodes() {
-        leafNodes.AddRange(node.GetLeafs());
-    } 
-
     public void ApplyDensityFunction(SphereDensitySetting density) {
         node.ApplyDensityFunction(density);
     }
@@ -77,9 +67,8 @@ public class Octree {
     public void Rasterize(byte[] densityGrid, byte[] typeGrid, int side) {
         node.RasterizeTree(densityGrid, typeGrid, side, node.position);
     }
-    public OctNodeData[] DeRasterizeGrid(byte[] densityGrid, byte[] typeGrid, int side) {
+    public void DeRasterizeGrid(byte[,,] densityGrid, byte[,,] typeGrid, int side) {
         node.DeRasterizeGrid(densityGrid, typeGrid, side, node.position);
-        return Read();
     }
 
 
@@ -87,11 +76,15 @@ public class Octree {
         node.Visualize();
     }
 
+    public byte GetBlockType() {
+        return node.data.type;
+    }
+
 
     [System.Serializable]
     private class OctNode {
 
-        public NodeRank rank;
+        public bool hasChildren;
 
         // data
         public Vector3 position;
@@ -103,10 +96,11 @@ public class Octree {
         public OctNode[] children;
 
         public OctNode(Vector3 position, float size) {
-            rank = NodeRank.Leaf;
             
+            hasChildren = false;
             this.position = position;
             this.size = size;
+            data = new OctNodeData(false);
         }
 
         public void Subdivide() {
@@ -122,12 +116,12 @@ public class Octree {
                     children[b] = new OctNode(childPosition, size / 2);
                 }
 
-                rank = NodeRank.Branch;
+                hasChildren = true;
             }
         }
         public void StripChildren() {
             children = null;
-            rank = NodeRank.Leaf;
+            hasChildren = false;
         }
 
         /// <summary>
@@ -143,9 +137,11 @@ public class Octree {
                 for (int i = 0; i < 8; i++) {
                     children[i].WriteData(dataarray, (data.childPosition + i));
                 }
+                hasChildren = true;
 
             } else {
                 data.childPosition = 0;
+                hasChildren = false;
             }
         }
 
@@ -154,14 +150,15 @@ public class Octree {
         /// </summary>
         public void ReadData(ref List<OctNodeData> dataarray, int myPos) {
 
-            if (children != null) {
+            if (hasChildren) {
                 
                 // get new child index
                 int newChildIndex = dataarray.Count;
                 dataarray[myPos].RewriteChild((ushort)newChildIndex);
 
                 for (int i = 0; i < 8; i++) {
-                    dataarray.Add(children[i].data);
+                    OctNodeData childData = new OctNodeData(children[i].data.type, children[i].data.signedDist, 0);
+                    dataarray.Add(childData);
                 }
                 for (int i = 0; i < 8; i++) {
                     children[i].ReadData(ref dataarray, (newChildIndex + i));
@@ -253,7 +250,7 @@ public class Octree {
             }
         }
 
-        public void DeRasterizeGrid(byte[] densityGrid, byte[] typeGrid, int gridSide, Vector3 octreeOrigin) {
+        public void DeRasterizeGrid(byte[,,] densityGrid, byte[,,] typeGrid, int gridSide, Vector3 octreeOrigin) {
             if (this.size > 1) {
                 Subdivide();
 
@@ -261,24 +258,32 @@ public class Octree {
                     children[b].DeRasterizeGrid(densityGrid, typeGrid, gridSide, octreeOrigin);
                 }
 
+                this.data = new OctNodeData(MostCommonChildType(), AverageChildDensity(), 0);
+
                 if (IsMonotone()) StripChildren();
             }
             else {
                 Vector3 localPos = this.position - octreeOrigin;
-                int gridIndex = Globals.LinearIndex((int)localPos.x, (int)localPos.y, (int)localPos.z, gridSide);
+                int gridIndex = Globals.LinearIndex((int)localPos.x + 1, (int)localPos.y + 1, (int)localPos.z + 1, gridSide);
 
-                this.data.type = typeGrid[gridIndex];
-                this.data.signedDist = densityGrid[gridIndex];
+                byte type = typeGrid[(int)localPos.x + 1, (int)localPos.y + 1, (int)localPos.z + 1];
+                byte signedDist = densityGrid[(int)localPos.x + 1, (int)localPos.y + 1, (int)localPos.z + 1];
+                this.data = new OctNodeData(type, signedDist, 0);
             }
         }
 
         public void ApplyDensityFunction(SphereDensitySetting density) {
             float sampleDensity = density.SphereDensity(position + Vector3.one * size * 0.5f);
-            float densityNow = Mathf.Max(sampleDensity, data.GetDensity());
+            float densityNow = Mathf.Max(Mathf.Clamp(sampleDensity, -1, 1), data.GetDensity());
 
-            data.SetDensity(densityNow);
-            if (densityNow >= 0) data.type = Brush.selectedType;
-            else data.type = 0;
+            bool nodeNowFar = Mathf.Abs(sampleDensity) > 1;
+            bool isSolid = sampleDensity > 0;
+
+            data.type = Brush.selectedType;
+            //if (nodeNowFar && !isSolid) data.type = 0;
+
+            if (nodeNowFar) data.signedDist = 0;
+            else data.SetDensity(densityNow);
 
             if (children == null) {
 
@@ -302,9 +307,11 @@ public class Octree {
 
         bool IsMonotone() {
 
-            if (children == null) return true;
+            if (!hasChildren) return true;
 
-            int childDensity = children[0].data.signedDist;
+            OctNode node= children[0];
+            OctNodeData t1 = node.data;
+            int childDensity = t1.signedDist;
             for (int b = 1; b < 8; b++) {
                 if (childDensity != children[b].data.signedDist) {
                     return false;
@@ -334,6 +341,36 @@ public class Octree {
                 }
             }
         } 
+
+        byte MostCommonChildType() {
+            if (!hasChildren) return data.type;
+            
+            for (int b = 0; b < 8; b++) {
+                if (children[b].data.type != 0) {
+                    return children[b].data.type;
+                }
+            }
+
+            return 0;
+        }
+        byte AverageChildDensity() {
+            if (!hasChildren) return data.signedDist;
+            int sum = 0;
+            float realCount = 0;
+
+            for (int b = 0; b < 8; b++) {
+                if (children[b].data.signedDist != 0) {
+                    sum += children[b].data.signedDist;
+                    realCount++;
+                }
+            }
+
+            if (realCount > 0) {
+                return (byte)(sum / realCount);
+            } else {
+                return 0;
+            }
+        }
  
         // constants
         static Vector3[] cornerOffsets = {
@@ -355,7 +392,7 @@ public enum NodeRank {
     Leaf
 } 
 
-public struct OctNodeData {
+public class OctNodeData {
     
     public bool filled;
     public byte type;
@@ -418,6 +455,9 @@ public struct OctNodeData {
     }
     public static float DecodeDensity(byte densityByte) {
         return (densityByte - 126) / 126f;
+    }
+    public static byte EncodeDensity(float densityValue) {
+        return (byte)(Mathf.Clamp(densityValue, -1, 1) * 126 + 126);
     }
 
     public override string ToString() {

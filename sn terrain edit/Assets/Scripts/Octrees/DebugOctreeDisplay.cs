@@ -7,7 +7,7 @@ public class DebugOctreeDisplay : MonoBehaviour
     public Vector3Int startOctree;
     public Vector3Int endOctree;
     Octree[,,] octrees;
-    byte[] densityGrid;
+    [SerializeField] byte[] densityGrid;
 
     public bool displayOctrees;
     public bool displayDensity;
@@ -61,7 +61,7 @@ public class DebugOctreeDisplay : MonoBehaviour
                     for (int z = 0; z < 32; z++) {
                         for (int y = 0; y < 32; y++) {
                             for (int x = 0; x < 32; x++) {
-                                float w = (densityGrid[pindex(x, y, z, 32)] - 126) / 126;
+                                float w = OctNodeData.DecodeDensity(densityGrid[Globals.LinearIndex(x, y, z, 32)]);
                                 Vector3 pos = new Vector3(x, y, z) + octrees[k, j, i].Origin;
                                 Gizmos.color = new Color(w, w, w);
                                 Gizmos.DrawSphere(pos, .25f);

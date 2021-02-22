@@ -149,6 +149,6 @@ public class SphereDensitySetting {
     public Vector3 origin;
     public float radius;
     public float SphereDensity(Vector3 sample) {
-        return Mathf.Clamp(radius - (sample - origin).magnitude, -1, 1);
+        return radius - (sample - origin).magnitude;
     }
 }
