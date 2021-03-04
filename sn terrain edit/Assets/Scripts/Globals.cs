@@ -21,7 +21,13 @@ public class Globals : MonoBehaviour {
 
     void Awake() {
         get = this;
-        GenerateColorMap();
+    }
+    void Start() {
+        LoadBatchMaterial();
+    }
+
+    public void LoadBatchMaterial() {
+        SNContentLoader.Load();
     }
 
     public static Color ColorFromType(int type) {
@@ -38,7 +44,7 @@ public class Globals : MonoBehaviour {
         return get.colorMap;
     }
 
-    void GenerateColorMap() {
+    public void GenerateColorMap() {
         colorMap = new Texture2D(16, 16);
 
         for(int y = 0; y < 16; y++) {
