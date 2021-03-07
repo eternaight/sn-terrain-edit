@@ -18,7 +18,6 @@ public class MeshBuilder : MonoBehaviour
     ComputeBuffer triCountBuffer;
 
     Batch batch;
-    float time;
 
     public void Awake() {
         builder = this;
@@ -65,7 +64,7 @@ public class MeshBuilder : MonoBehaviour
 
         // Setting data inside shader
 
-        Debug.Log($"Creating buffers of size: {size.ToString()}");
+        //Debug.Log($"Creating buffers of size: {size.ToString()}");
 
         CreateBuffers(size);
 
@@ -201,7 +200,6 @@ public class MeshBuilder : MonoBehaviour
         public Vector3 a, b, c, d;
         public Vector3 surfaceIntersection;
         public int type;
-        public int dir;
         public Vector3 this [int i] {
             get {
                 switch (i) {
@@ -221,7 +219,7 @@ public class MeshBuilder : MonoBehaviour
         /// Returns stride of one face for Compute shaders
         ///</summary>
         public static int GetStride() {
-            return sizeof(float) * 3 * 5 + sizeof(int) * 2;
+            return sizeof(float) * 3 * 5 + sizeof(int);
         }
 
         public bool IsPartOfMesh() {
