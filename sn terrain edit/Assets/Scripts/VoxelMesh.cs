@@ -98,6 +98,14 @@ public class VoxelMesh : MonoBehaviour
             CreateMeshObject(voxelandTransform);
         }
         public void UpdateGrid() {
+
+            bool doMatGallery = true;
+
+            if (doMatGallery) {
+                grid = DensityGenerator.GenerateMaterialGallery(octreeIndex, 32);
+                return;
+            }
+
             byte[] tempTypes = new byte[32 * 32 * 32];
             byte[] tempDensities = new byte[32 * 32 * 32];
 

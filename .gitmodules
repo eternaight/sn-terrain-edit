@@ -1,0 +1,3 @@
+[submodule "sn"]
+	path = sn terrain edit/Assets/Scripts/Asset Loading/Asset Studio Scripts/Asset Studio
+	url = git://github.com/Perfare/AssetStudio.git
