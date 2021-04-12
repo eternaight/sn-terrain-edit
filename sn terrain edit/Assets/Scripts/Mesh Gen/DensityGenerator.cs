@@ -34,53 +34,114 @@ public class DensityGenerator : MonoBehaviour
 
         return points;
     }
-    public static VoxelMesh.VoxelGrid GenerateMaterialGallery(Vector3Int octreeIndex, int pointCount = 32, int startMatType = 0) {
-        
-        int count = pointCount * pointCount * pointCount;
 
-        byte[,,] densityPoints = new byte[pointCount, pointCount, pointCount];
-        byte[,,] typePoints = new byte[pointCount, pointCount, pointCount];
+    public void ApplyBatchDensity(ref Vector4[] originalPoints, Vector3Int pointCount, Vector3 sampleOrigin, ref int[] pointTypes) {
 
-        startMatType = 0;
-        if (octreeIndex.x == 2 && octreeIndex.z == 2 && octreeIndex.y == 3) startMatType = 97;
-        if (octreeIndex.x == 1 && octreeIndex.z == 2 && octreeIndex.y == 3) startMatType = 105;
+        for (int z = 0; z < pointCount.z; z++) {
+            for (int y = 0; y < pointCount.y; y++) {
+                for (int x = 0; x < pointCount.x; x++) {
 
-        if (startMatType != 0) {
+                    int i = indexFromId(x, y, z, pointCount);
+                    Vector3 vertex = (Vector3)(originalPoints[i]) + sampleOrigin;
 
-            int side = 30;
-            int index = startMatType;
-            int end = startMatType + 8;
-
-            for (int i = 1; i < side; i += 4) {
-                for (int j = 1; j < side; j += 4) {
-
-                    typePoints[i, 16, j] = 1;
-                    for (int x = -1; x < 2; x++) {
-                        for (int y = -1; y < 2; y++) {
-                            for (int z = -1; z < 2; z++) {
-                                if (x == 0 && y == 0 && z == 0) {
-                                    continue;
-                                }
-                                densityPoints[i + x, 16 + y, j + z] = OctNodeData.EncodeDensity(.5f);
-                                typePoints[i + x, 16 + y, j + z] = (byte)index;
-                            }
-                        }
-                    }
-                    index++;
-                    if (index == end) break;
+                    PointData point = BatchDensityEnhanced(vertex);
+                    originalPoints[i].w += point.density;
+                    pointTypes[i] = point.type;
                 }
-                if (index == end) break;
             }
-
         }
-    
-        VoxelMesh.VoxelGrid grid = new VoxelMesh.VoxelGrid(densityPoints, typePoints, Vector3Int.one * pointCount);
+    }
 
-        return grid;
+    public void ApplySphereDensity(ref Vector4[] originalPoints, Vector3Int pointCount, Vector3 sphereOrigin, float sphereRadius) {
+
+        for (int z = 0; z < pointCount.z; z++) {
+            for (int y = 0; y < pointCount.y; y++) {
+                for (int x = 0; x < pointCount.x; x++) {
+                    
+                    int i = indexFromId(x, y, z, pointCount);
+                    Vector3 vertex = originalPoints[i];
+                    float d = Mathf.Max(originalPoints[i].w, SphereDensity(vertex, sphereOrigin, sphereRadius));
+
+                    originalPoints[i].w = d;
+                }
+            }
+        }
+    }
+
+    public void ApplyEdgeDensity(float[] originalPoints, int[] pointTypes, Vector3Int pointCount, Vector3Int containerIndex) {
+
+        bool isOnOuterEdge = (containerIndex.x == 4 || containerIndex.y == 4 || containerIndex.z == 4);
+        bool isOnInnerEdge = (containerIndex.x == 0 || containerIndex.y == 0 || containerIndex.z == 0);
+
+        if (!isOnInnerEdge && !isOnOuterEdge) {
+            return;
+        }
+
+        
+        for (int z = 0; z < pointCount.z; z++) {
+            for (int y = 0; y < pointCount.y; y++) {
+                for (int x = 0; x < pointCount.x; x++) {
+
+                    bool resetPoint = false;
+
+                    if (x == 0 && containerIndex.x == 0) resetPoint = true;
+                    if (y == 0 && containerIndex.y == 0) resetPoint = true;
+                    if (z == 0 && containerIndex.z == 0) resetPoint = true; 
+                    if (x == pointCount.x - 2 && containerIndex.x == 4) resetPoint = true;
+                    if (y == pointCount.y - 2 && containerIndex.y == 4) resetPoint = true;
+                    if (z == pointCount.z - 2 && containerIndex.z == 4) resetPoint = true; 
+
+                    if (resetPoint) {
+                        int index = indexFromId(x, y, z, pointCount);
+                        originalPoints[index] = -1;
+                        pointTypes[index] = 0;
+                    }
+                }
+            }
+        }
+
     }
 
     int indexFromId(int x, int y, int z, Vector3Int size) {
         return z * size.y * size.x + y * size.x + x;
+    }
+
+    public float SphereDensity(Vector3 point, Vector3 sphereOrigin, float radius) {
+        return radius - (point - sphereOrigin).magnitude;
+    }
+    public PointData BatchDensityEnhanced(Vector3 point) {
+        int x = (int)(point.x / 160);
+        int y = (int)(point.y / 160);
+        int z = (int)(point.z / 160);
+        
+        Batch batch = region.GetBatchLocal(x, y, z);
+        if (batch) {
+            return new PointData(batch.GetNode(point));
+        }
+
+        PointData exteriorData = new PointData(0, -1);
+        return exteriorData;
+    }
+
+    Vector3Int GetOctreeIndex(int x, int y, int z, Vector3Int octI) {
+
+        return new Vector3Int(
+            ((x == -1 && octI.x > 0) ? -1 : 0),
+            ((y == -1 && octI.y > 0) ? -1 : 0),
+            ((z == -1 && octI.z > 0) ? -1 : 0));
+    }
+}
+
+public struct PointData {
+    public int type;
+    public float density;
+    public PointData(int t, float d) {
+        type = t;
+        density = d;
+    }
+    public PointData(OctNodeData data) {
+        type = data.type;
+        density = data.GetDensity();
     }
 }
 
