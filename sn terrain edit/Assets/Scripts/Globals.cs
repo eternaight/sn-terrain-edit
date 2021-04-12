@@ -16,6 +16,7 @@ public class Globals : MonoBehaviour {
     public const string sourcePathKey = "sourcePath";
     public const string outputPathKey = "outputPath";
     public const string gameToBatchPostfix = "\\Subnautica_Data\\StreamingAssets\\SNUnmanagedData\\Build18\\CompiledOctreesCache";
+    public const string gameToAddressablesPostfix = "\\Subnautica_Data\\StreamingAssets\\aa\\StandaloneWindows64";
 
     int type = 0;
 
