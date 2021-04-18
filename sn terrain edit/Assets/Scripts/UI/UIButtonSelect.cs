@@ -7,13 +7,14 @@ using UnityEngine.UI;
 public class UIButtonSelect : MonoBehaviour
 {
     public int selection;
-    public int totalButtons;
+    int totalButtons;
     public Color unselectedColor;
     public Color selectedColor;
 
     public event Action OnValueChanged;
 
     void Start() {
+        totalButtons = transform.childCount;
         UpdateButtons();
     }
     public void SetSelection(int newSel) {

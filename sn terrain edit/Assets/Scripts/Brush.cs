@@ -19,6 +19,11 @@ public class Brush : MonoBehaviour
 
     void Start() {
         CreateBrushObject();
+        RegionLoader.loader.OnLoadFinish += OnLoadRegion;
+    }
+
+    void OnLoadRegion() {
+        Brush.selectedType = RegionLoader.loader.GetBatchLocal(0, 0, 0).mainBlockType;
     }
 
     public void BrushAction(bool doAction) {
@@ -37,10 +42,14 @@ public class Brush : MonoBehaviour
                 if (DoNextBrushStroke()) {
 
                     lastBrushTime = Time.time;
-                    Brush.selectedType = RegionLoader.loader.GetBatchLocal(0, 0, 0).mainBlockType;
 
                     if (hit.collider.gameObject.GetComponentInParent<VoxelMesh>()) {
-                        hit.collider.gameObject.GetComponentInParent<VoxelMesh>().DensityAction_Sphere(hit.point, Brush.brushSize, mode);
+                        if (mode == BrushMode.Eyedropper) {
+                            SetBrushMaterial(hit.collider.gameObject.GetComponentInParent<VoxelMesh>().SampleBlocktype(hit.point, ray));
+                            FindObjectOfType<UIBrushWindow>().UpdateBlocktypeDisplay();
+                        } else {
+                            hit.collider.gameObject.GetComponentInParent<VoxelMesh>().DensityAction_Sphere(hit.point, Brush.brushSize, mode);
+                        }
                     }
                 }
             } else {
@@ -61,7 +70,12 @@ public class Brush : MonoBehaviour
 
         brushAreaObject.SetActive(true);
         brushAreaObject.transform.position = position;
-        brushAreaObject.transform.localScale = Vector3.one * 2 * Brush.brushSize;
+
+        if (mode == BrushMode.Eyedropper) {
+            brushAreaObject.transform.localScale = Vector3.one * 2;
+        } else {
+            brushAreaObject.transform.localScale = Vector3.one * 2 * Brush.brushSize;
+        }
     }
     public void DisableBrushGizmo() {
         brushAreaObject.SetActive(false);

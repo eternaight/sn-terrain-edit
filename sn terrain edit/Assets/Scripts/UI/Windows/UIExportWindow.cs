@@ -1,7 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using TMPro;
+using UnityEngine.UI;
 
 public class UIExportWindow : UIWindow
 {
@@ -20,11 +20,11 @@ public class UIExportWindow : UIWindow
 
     public void SetExportPath() {
         
-        TMP_InputField fieldInput = transform.GetChild(2).GetChild(1).GetComponent<TMP_InputField>();
+        InputField fieldInput = transform.GetChild(2).GetChild(1).GetComponent<InputField>();
         fieldInput.text = Globals.get.batchOutputPath;
     }
     public void SaveNewExportPath() {
-        TMP_InputField fieldI = transform.GetChild(2).GetChild(1).GetComponent<TMP_InputField>();
+        InputField fieldI = transform.GetChild(2).GetChild(1).GetComponent<InputField>();
 
         if (fieldI.text != "") {
             Globals.SetBatchOutputPath(fieldI.text, true);

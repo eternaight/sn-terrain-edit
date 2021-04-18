@@ -72,6 +72,26 @@ public class VoxelMesh : MonoBehaviour
         }
     }
 
+    public byte SampleBlocktype(Vector3 point, Ray cameraRay, int recDepth = 0) {
+        
+        if (recDepth == 4) return 0;
+
+        int x = Mathf.FloorToInt(point.x / 32);
+        int y = Mathf.FloorToInt(point.y / 32);
+        int z = Mathf.FloorToInt(point.z / 32);
+
+        byte type = octreeContainers[Globals.LinearIndex(x, y, z, 5)].SampleBlocktype(point);
+
+        if (type == 0) {
+            float newDistance = Vector3.Distance(point, cameraRay.origin) + .5f;
+            Vector3 newPoint = cameraRay.GetPoint(newDistance);
+
+            return SampleBlocktype(newPoint, cameraRay, recDepth + 1);
+        }
+
+        return type;
+    }
+
     [SerializeField]
     class PointContainer {
         Vector3Int octreeIndex;
@@ -99,7 +119,7 @@ public class VoxelMesh : MonoBehaviour
         }
         public void UpdateGrid() {
 
-            bool doMatGallery = true;
+            bool doMatGallery = false;
 
             if (doMatGallery) {
                 grid = DensityGenerator.GenerateMaterialGallery(octreeIndex, 32);
@@ -131,7 +151,7 @@ public class VoxelMesh : MonoBehaviour
 
             SphereDensitySetting setting = new SphereDensitySetting() { origin = sphereOrigin, radius = sphereRadius };
 
-            grid.ApplyDensityFunction(setting, octreeIndex * 32);
+            grid.ApplyDensityFunction(setting, octreeIndex * 32, mode);
         }
 
         public void UpdateMesh() {
@@ -146,24 +166,41 @@ public class VoxelMesh : MonoBehaviour
             byte[] tempTypes;
             grid.GetFullGrids(out tempDensities, out tempTypes);
             
-            containerMeshes = MeshBuilder.builder.GenerateMesh(tempDensities, tempTypes, grid.fullGridDim, offset);
+            int[] blocktypes;
+            containerMeshes = MeshBuilder.builder.GenerateMesh(tempDensities, tempTypes, grid.fullGridDim, offset, out blocktypes);
 
             // update data
             if (containerMeshes.Count > 0) {
                 meshObj.GetComponent<MeshFilter>().sharedMesh = containerMeshes[0];
-            }
 
-            MeshCollider coll = meshObj.GetComponent<MeshCollider>();
-            if (!coll) {
-                meshObj.AddComponent<MeshCollider>();
-            } else {
-                coll.sharedMesh = containerMeshes[0];
+                MeshCollider coll = meshObj.GetComponent<MeshCollider>();
+                if (!coll) {
+                    meshObj.AddComponent<MeshCollider>();
+                } else {
+                    coll.sharedMesh = containerMeshes[0];
+                }
+
+                MeshRenderer renderer = meshObj.GetComponent<MeshRenderer>();
+                Material[] materials = new Material[blocktypes.Length];
+                for (int b = 0; b < blocktypes.Length; b++) {
+                    materials[b] = SNContentLoader.GetMaterialForType(blocktypes[b]);
+                }
+                renderer.materials = materials;
             }
         }
 
         public void CheckCopyOctreeSides() {
             VoxelMesh voxelMesh = meshObj.transform.parent.GetComponent<VoxelMesh>();
             grid.AddPaddingFull(voxelMesh, octreeIndex);
+        }
+
+        public byte SampleBlocktype(Vector3 worldPoint) {
+            Vector3 localPoint = worldPoint - octreeIndex * 32;
+            int x = (int)localPoint.x;
+            int y = (int)localPoint.y;
+            int z = (int)localPoint.z;
+
+            return grid.typeGrid[x + 1, y + 1, z + 1];
         }
     }
 
@@ -295,29 +332,13 @@ public class VoxelMesh : MonoBehaviour
             fullTypeGrid =      Globals._3DArrayTo1D(typeGrid);
         }
 
-        public void ApplyDensityFunction(SphereDensitySetting setting, Vector3 gridOrigin) {
+        public void ApplyDensityFunction(SphereDensitySetting setting, Vector3 gridOrigin, BrushMode mode) {
             for (int z = 1; z < 33; z++) {
                 for (int y = 1; y < 33; y++) {
                     for (int x = 1; x < 33; x++) {
-                        byte oldDist = densityGrid[x, y, z], oldType = typeGrid[x, y, z];
-
-                        float functionDensity = setting.SphereDensity(new Vector3(x, y, z) + gridOrigin);
-                        float clampedFunctionDensity = Mathf.Clamp(functionDensity, -1, 1);
-                        byte encodedFunctionDensity = OctNodeData.EncodeDensity(clampedFunctionDensity);
-
-                        byte compareDist = oldDist;
-                        if (oldDist == 0 && oldType != 0) compareDist = byte.MaxValue;
-
-                        if (encodedFunctionDensity > compareDist) {
-                            // change value
-                            bool nodeIsFar = functionDensity != clampedFunctionDensity;
-                            if (nodeIsFar) encodedFunctionDensity = 0;
-
-                            byte newType = clampedFunctionDensity > 0 ? Brush.selectedType : (byte)0;
-
-                            densityGrid[x, y, z] = encodedFunctionDensity;
-                            typeGrid[x, y, z] = newType;
-                        }
+                        byte[] new_values = setting.SphereDensityAction(mode, densityGrid[x, y, z], typeGrid[x, y, z], new Vector3(x, y, z) + gridOrigin);
+                        densityGrid[x, y, z] = new_values[0];
+                        typeGrid[x, y, z] = new_values[1];
                     }
                 }
             }

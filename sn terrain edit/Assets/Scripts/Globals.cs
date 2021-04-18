@@ -23,13 +23,6 @@ public class Globals : MonoBehaviour {
     void Awake() {
         get = this;
     }
-    void Start() {
-        LoadBatchMaterial();
-    }
-
-    public void LoadBatchMaterial() {
-        SNContentLoader.Load();
-    }
 
     public static Color ColorFromType(int type) {
 
@@ -67,7 +60,7 @@ public class Globals : MonoBehaviour {
             batchMat.color = Color.white;
             batchMat.SetTexture("_MainTex", colorMap);
         } else {
-            batchMat.color = ColorFromType(Globals.get.type);
+            batchMat.color = Color.white;
             batchMat.SetTexture("_MainTex", null);
         }
     }

@@ -90,4 +90,83 @@ public class SphereDensitySetting {
     public float SphereDensity(Vector3 sample) {
         return radius - (sample - origin).magnitude;
     }
+
+    public byte[] SphereDensityAction(BrushMode mode, byte d, byte t, Vector3 pos) {
+        switch (mode) {
+            case BrushMode.Add:
+                return SphereDensityAction_Add(d, t, pos);
+            case BrushMode.Remove:
+                return SphereDensityAction_Remove(d, t, pos);
+            case BrushMode.Paint:
+                return SphereDensityAction_Paint(d, t, pos);
+            default:
+                byte[] densityTypeOriginal = {d, t};
+                return densityTypeOriginal;
+        }
+    }
+
+    byte[] SphereDensityAction_Add(byte density, byte type, Vector3 pos) {
+        byte[] appliedValues = {density, type};
+
+        float functionDensity = SphereDensity(pos);
+        float clampedFunctionDensity = Mathf.Clamp(functionDensity, -1, 1);
+        byte encodedFunctionDensity = OctNodeData.EncodeDensity(clampedFunctionDensity);
+
+        byte compareDist = density;
+        if (density == 0 && type != 0) compareDist = byte.MaxValue;
+
+        if (encodedFunctionDensity > compareDist) {
+            // change value
+            bool nodeIsFar = functionDensity != clampedFunctionDensity;
+            if (nodeIsFar) encodedFunctionDensity = 0;
+
+            byte newType = clampedFunctionDensity > 0 ? Brush.selectedType : (byte)0;
+
+            appliedValues[0] = encodedFunctionDensity;
+            appliedValues[1] = newType;
+        }
+
+        return appliedValues;
+    }
+    byte[] SphereDensityAction_Remove(byte density, byte type, Vector3 pos) {
+
+        // Cut into solid voxels, change type to 0 if voxel is no longer solid
+
+        byte[] appliedValues = {density, type};
+
+        float functionDensity = -SphereDensity(pos);
+        float clampedFunctionDensity = Mathf.Clamp(functionDensity, -1, 1);
+        byte encodedFunctionDensity = OctNodeData.EncodeDensity(clampedFunctionDensity);
+
+        byte compareDist = density;
+        if (density == 0 && type != 0) compareDist = byte.MaxValue;
+
+        if (encodedFunctionDensity < compareDist) {
+            // change value
+            bool nodeIsFar = functionDensity != clampedFunctionDensity;
+            if (nodeIsFar) encodedFunctionDensity = 0;
+
+            appliedValues[0] = encodedFunctionDensity;
+            
+            if (clampedFunctionDensity < 0)
+                appliedValues[1] = 0;
+        }
+
+        return appliedValues;
+    }
+    byte[] SphereDensityAction_Paint(byte density, byte type, Vector3 pos) {
+
+        // Paint voxels on the intersection of mesh and brush
+
+        byte[] appliedValues = {density, type};
+
+        float functionDensity = SphereDensity(pos);
+        float clampedFunctionDensity = Mathf.Clamp(functionDensity, -1, 1);
+
+        if (functionDensity > 0 && OctNodeData.DecodeDensity(density) > 0) {
+            appliedValues[1] = Brush.selectedType;
+        }
+
+        return appliedValues;
+    }
 }

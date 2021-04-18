@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
-using TMPro;
 
 public class UILoadWindow : UIWindow
 {
@@ -13,7 +12,7 @@ public class UILoadWindow : UIWindow
             return;
         }
 
-        TMP_InputField field1 = transform.GetChild(2).GetChild(3).GetComponent<TMP_InputField>();
+        InputField field1 = transform.GetChild(2).GetChild(3).GetComponent<InputField>();
 
         string[] s = field1.text.Split(' ');
 
@@ -26,11 +25,11 @@ public class UILoadWindow : UIWindow
 
     public void SetLoadPath() {
         
-        TMP_InputField fieldInput2 = transform.GetChild(2).GetChild(1).GetComponent<TMP_InputField>();
+        InputField fieldInput2 = transform.GetChild(2).GetChild(1).GetComponent<InputField>();
         fieldInput2.text = Globals.get.batchSourcePath;
     }
     public void SaveNewLoadPath() {
-        TMP_InputField fieldI = transform.GetChild(2).GetChild(1).GetComponent<TMP_InputField>();
+        InputField fieldI = transform.GetChild(2).GetChild(1).GetComponent<InputField>();
 
         if (fieldI.text != "") {
             Globals.SetBatchInputPath(fieldI.text, true);
