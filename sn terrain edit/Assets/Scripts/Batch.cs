@@ -12,8 +12,6 @@ public class Batch : MonoBehaviour
 
     VoxelMesh _voxelMesh;
 
-    public byte mainBlockType;
-
     public event Action OnBatchConstructed;
 
     public void Setup() {
@@ -50,13 +48,6 @@ public class Batch : MonoBehaviour
     public void ConstructBatch() {
         
         _voxelMesh.Init(rootNodes);
-        byte res = 0;
-        for (int i = 0; i < 125 && res == 0; i++) {
-            res = rootNodes[i, (i % 25) / 5, i / 25].GetBlockType();
-        }
-        mainBlockType = res;
-        Globals.SetMatBlockType(mainBlockType);
-        Globals.get.UpdateBatchMaterial(false);
         OnBatchConstructed();
     }
 

@@ -23,7 +23,7 @@ public class Brush : MonoBehaviour
     }
 
     void OnLoadRegion() {
-        Brush.selectedType = RegionLoader.loader.GetBatchLocal(0, 0, 0).mainBlockType;
+        Brush.selectedType = 1;
     }
 
     public void BrushAction(bool doAction) {
