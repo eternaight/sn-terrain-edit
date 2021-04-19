@@ -1,11 +1,13 @@
 using System;
 using System.Runtime.InteropServices;
+using UnityEngine;
+
 public unsafe static class TextureDecoder
 {
     const string dllName = "Texture2DDecoderNative";
 
     static TextureDecoder() {
-        var dllPath = "C:\\Users\\komet\\Desktop\\assstudio" + (Environment.Is64BitProcess ? "\\x64" : "\\x86");
+        var dllPath = Application.dataPath + "\\Scripts\\Asset Loading\\PlusPlus Script stuff\\Decoder DLLs" + (Environment.Is64BitProcess ? "\\x64" : "\\x86");
         AssetStudio.PInvoke.DllLoader.PreloadDll(dllName, dllPath);
     }
 

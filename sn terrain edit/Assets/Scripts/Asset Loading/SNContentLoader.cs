@@ -70,17 +70,28 @@ public class SNContentLoader : MonoBehaviour
             int blocktype = 0;
             int.TryParse(split1[0], out blocktype);
             string materialName = split1[1].Substring(1);
+            
+            string nondecoName = materialName;
+            if (materialName.Contains("deco")) {
+                nondecoName = materialName.Split(' ')[0];
+            }
+            // No non-decorated Sand01ToCoral15 mat, TODO: some struct between Texture and Material
+            if (nondecoName == "Sand01ToCoral15") {
+                nondecoName = "Sand01";
+            }
 
             List<int> blocktypes;
-            if (!materialBlocktypes.TryGetValue(materialName, out blocktypes)) {
+            if (!materialBlocktypes.TryGetValue(nondecoName, out blocktypes)) {
                 blocktypes = new List<int>();
-                materialBlocktypes.Add(materialName, blocktypes);
+                materialBlocktypes.Add(nondecoName, blocktypes);
             }
             blocktypes.Add(blocktype);
 
             BlocktypeMaterial entry = new BlocktypeMaterial();
             entry.blocktype = blocktype;
-            entry.materialName = materialName;
+            entry.materialName = nondecoName;
+            entry.trueName = materialName;
+
             blocktypesData[blocktype] = entry;
         }
     }
@@ -109,8 +120,9 @@ public class SNContentLoader : MonoBehaviour
                 }
                 newtexture.Apply();
 
+                int textureType = DetermineTextureType(textureAsset.m_Name);
                 foreach(int b in blocktypes) {
-                    blocktypesData[b].SetTexture(DetermineTextureType(textureAsset.m_Name), newtexture);
+                    blocktypesData[b].SetTexture(textureType, textureAsset.m_PathID, newtexture);
                 }
             }
         }
@@ -158,39 +170,57 @@ public class SNContentLoader : MonoBehaviour
     } 
     
     static int DetermineTextureType(string name) {
-        if (name.Contains("sig")) return 2;
-        if (name.Contains("normal")) return 1;
+        string lowercaseName = name.ToLower();
+        if (lowercaseName.Contains("sig")) return 2;
+        if (lowercaseName.Contains("normal")) return 1;
+        if (lowercaseName.Contains("mormal")) return 1;
         return 0;
     } 
 }
 
 class BlocktypeMaterial {
     public string materialName;
+    public string trueName;
     public int blocktype;
     public List<long> pathIDs = new List<long>();
     public Texture2D[] textures;
 
-    public void SetTexture(int type, Texture2D texture) {
+    public void SetTexture(int type, long pathID, Texture2D texture) {
         if (textures == null) {
-            textures = new Texture2D[3];
+            textures = new Texture2D[6];
         }
-        textures[type] = texture;
+        if (pathIDs.Count > 6) {
+            textures[type] = texture;
+        } else {
+            textures[pathIDs.IndexOf(pathID)] = texture;
+        }
     } 
 
     public Material MakeMaterial() {
-        Material mat = new Material(Globals.GetBatchMat());
-        
-        mat.name = $"Material of type {blocktype}";
+        Material mat;
+        if (textures[3] != null) {
+            mat = new Material(Globals.get.batchCappedMat);
 
-        if (textures != null && textures[0] != null)
-            mat.SetTexture("_MainTex", textures[0]);
-        else {
-            mat.SetColor("_Color", Globals.ColorFromType(blocktype));
+            mat.SetTexture("_MainTex", textures[2]);
+            mat.SetTexture("_BumpMap", textures[0]);
+            mat.SetTexture("_SideTex", textures[5]);
+            mat.SetTexture("_SideBumpMap", textures[3]);
+        } else {
+            mat = new Material(Globals.get.batchMat);
+
+            mat.SetTexture("_MainTex", textures[1]);
+            mat.SetTexture("_BumpMap", textures[0]);
         }
-
-        if (textures != null && textures[1] != null)
-            mat.SetTexture("_BumpMap", textures[1]);
+        
+        mat.name = trueName;
 
         return mat;
+    }
+
+    enum MaterialSpecies {
+        Regular,
+        Capped,
+        Deco,
+        Lava
     }
 }

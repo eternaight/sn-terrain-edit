@@ -6,6 +6,7 @@ public class Globals : MonoBehaviour {
     [HideInInspector]
     public bool displayTypeColors;
     public Material batchMat;
+    public Material batchCappedMat;
     public Material brushGizmoMat;
     public Texture2D colorMap;
     public Color[] brushColors;

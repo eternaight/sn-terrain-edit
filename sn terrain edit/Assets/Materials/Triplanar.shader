@@ -1,4 +1,4 @@
-﻿Shader "Triplanar Mapped"
+﻿Shader "Triplanar"
 {
     Properties
     {
@@ -64,9 +64,9 @@
                 float2 uvY = i.worldPos.xz;
                 float2 uvZ = i.worldPos.xy;
 
-                half3 tnormalX = UnpackNormal(tex2D(_BumpMap, uvX));
-                half3 tnormalY = UnpackNormal(tex2D(_BumpMap, uvY));
-                half3 tnormalZ = UnpackNormal(tex2D(_BumpMap, uvZ));
+                half3 tnormalX = UnpackNormal(tex2D(_BumpMap, uvX * _Scale));
+                half3 tnormalY = UnpackNormal(tex2D(_BumpMap, uvY * _Scale));
+                half3 tnormalZ = UnpackNormal(tex2D(_BumpMap, uvZ * _Scale));
 
                 // Swizzle world normals into tangent space and apply Whiteout blend
                 tnormalX = half3(
@@ -99,7 +99,7 @@
                 float4 col = colX * blendWeight.x + colY * blendWeight.y + colZ * blendWeight.z;
                 float lightPercent = saturate(dot(worldNormal, _WorldSpaceLightPos0.xyz));
 
-                return (_AmbColor + lightPercent * col) * _Color;
+                return lerp(_AmbColor * col, col, lightPercent) * _Color;
             }
             ENDCG
         }
