@@ -61,7 +61,7 @@ public class Brush : MonoBehaviour
     }
     void CreateBrushObject() {
         brushAreaObject = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-        brushAreaObject.GetComponent<MeshRenderer>().sharedMaterial = Globals.get.brushGizmoMat;
+        brushAreaObject.GetComponent<MeshRenderer>().sharedMaterial = Globals.instance.brushGizmoMat;
         brushAreaObject.GetComponent<SphereCollider>().enabled = false;
         brushAreaObject.transform.localScale = Vector3.one * Brush.brushSize;
     }
@@ -92,7 +92,7 @@ public class Brush : MonoBehaviour
     public static void SetBrushMode(BrushMode newMode) {
         mode = newMode;
 
-        Globals.get.brushGizmoMat.color = Globals.get.brushColors[(int)mode];
+        Globals.instance.brushGizmoMat.color = Globals.instance.brushColors[(int)mode];
     }
 
     bool DoNextBrushStroke() {

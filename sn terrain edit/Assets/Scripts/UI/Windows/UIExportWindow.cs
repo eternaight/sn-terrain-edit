@@ -5,9 +5,10 @@ using UnityEngine.UI;
 
 public class UIExportWindow : UIWindow
 {
+    UICheckbox checkbox;
     public void ExportBatch() {
 
-        if (string.IsNullOrEmpty(Globals.get.batchOutputPath)) {
+        if (string.IsNullOrEmpty(Globals.instance.batchOutputPath)) {
             // throw error
             return;
         }
@@ -20,14 +21,28 @@ public class UIExportWindow : UIWindow
 
     public void SetExportPath() {
         
-        InputField fieldInput = transform.GetChild(2).GetChild(1).GetComponent<InputField>();
-        fieldInput.text = Globals.get.batchOutputPath;
+        InputField fieldInput = transform.GetChild(2).GetChild(2).GetComponent<InputField>();
+        fieldInput.text = Globals.instance.userBatchOutputPath;
     }
     public void SaveNewExportPath() {
-        InputField fieldI = transform.GetChild(2).GetChild(1).GetComponent<InputField>();
+        InputField fieldI = transform.GetChild(2).GetChild(2).GetComponent<InputField>();
 
         if (fieldI.text != "") {
             Globals.SetBatchOutputPath(fieldI.text, true);
+        }
+    }
+
+    public void OnCheckboxInteract() {
+        if (checkbox.check) {
+            // export into the game folders
+            Globals.instance.exportIntoGame = true;
+            transform.GetChild(2).GetChild(1).gameObject.SetActive(false);
+            transform.GetChild(2).GetChild(2).gameObject.SetActive(false);
+        } else {
+            // export into custom folder
+            Globals.instance.exportIntoGame = false;
+            transform.GetChild(2).GetChild(1).gameObject.SetActive(true);
+            transform.GetChild(2).GetChild(2).gameObject.SetActive(true);
         }
     }
 
@@ -35,6 +50,11 @@ public class UIExportWindow : UIWindow
     public override void EnableWindow()
     {
         SetExportPath();
+        if (checkbox == null) {
+            checkbox = GetComponentInChildren<UICheckbox>();
+            checkbox.transform.GetComponent<Button>().onClick.AddListener(OnCheckboxInteract);
+            OnCheckboxInteract();
+        }
         base.EnableWindow();
     }
     public override void DisableWindow()

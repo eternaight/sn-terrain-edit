@@ -1,7 +1,7 @@
 using UnityEngine;
 public class Globals : MonoBehaviour {
 
-    public static Globals get;
+    public static Globals instance;
 
     [HideInInspector]
     public bool displayTypeColors;
@@ -16,18 +16,24 @@ public class Globals : MonoBehaviour {
             return gamePath + gameToBatchPostfix;
         }
     }
-    public string batchOutputPath;
+    public string batchOutputPath {
+        get {
+            return exportIntoGame ? gamePath + gameToBatchPostfix : userBatchOutputPath;
+        }
+    }
+    public string userBatchOutputPath;
     public const int threadGroupSize = 8;
 
     public const string sourcePathKey = "gamePath";
     public const string outputPathKey = "outputPath";
     public const string gameToBatchPostfix = "\\Subnautica_Data\\StreamingAssets\\SNUnmanagedData\\Build18\\CompiledOctreesCache";
     public const string gameToAddressablesPostfix = "\\Subnautica_Data\\StreamingAssets\\aa\\StandaloneWindows64";
+    public bool exportIntoGame;
 
     int type = 0;
 
     void Awake() {
-        get = this;
+        instance = this;
     }
 
     public static Color ColorFromType(int type) {
@@ -38,47 +44,16 @@ public class Globals : MonoBehaviour {
     }
 
     public static Material GetBatchMat() {
-        return get.batchMat;
+        return instance.batchMat;
     }
-    public static Texture2D GetColorMap() {
-        return get.colorMap;
-    }
-
-    public void GenerateColorMap() {
-        colorMap = new Texture2D(16, 16);
-
-        for(int y = 0; y < 16; y++) {
-            for(int x = 0; x < 16; x++) {
-                colorMap.SetPixel(x, y, ColorFromType(x + y * 16));
-            }
-        }
-
-        colorMap.filterMode = FilterMode.Point;
-        colorMap.Apply();
-        UpdateBatchMaterial(displayTypeColors);
-    }
-
-    public void UpdateBatchMaterial(bool display) {
-
-        displayTypeColors = display;
-
-        if (displayTypeColors) {
-            batchMat.color = Color.white;
-            batchMat.SetTexture("_MainTex", colorMap);
-        } else {
-            batchMat.color = Color.white;
-            batchMat.SetTexture("_MainTex", null);
-        }
-    }
-
     public static void SetGamePath(string path, bool save) {
-        get.gamePath = path;
+        instance.gamePath = path;
         
         if (save)
             SaveData.WriteKey(sourcePathKey, path);
     }
     public static void SetBatchOutputPath(string path, bool save) {
-        get.batchOutputPath = path;
+        instance.userBatchOutputPath = path;
 
         if (save)
             SaveData.WriteKey(outputPathKey, path);
@@ -120,6 +95,6 @@ public class Globals : MonoBehaviour {
     }
 
     public static void SetMatBlockType(byte blockType) {
-        Globals.get.type = blockType;
+        Globals.instance.type = blockType;
     }
 }

@@ -23,7 +23,10 @@ public class VoxelMesh : MonoBehaviour
         int totalContainers = containersPerSide * containersPerSide * containersPerSide;
 
         rootNodes = _rootNodes;
-        octreeContainers = new PointContainer[totalContainers];
+        bool firstInit = octreeContainers == null;
+        if (firstInit) {
+            octreeContainers = new PointContainer[totalContainers];
+        }
 
         for (int z = 0; z < containersPerSide; z++) {
             for (int y = 0; y < containersPerSide; y++) {
@@ -33,12 +36,22 @@ public class VoxelMesh : MonoBehaviour
 
                     int densitySide = pointsPerOctreeAxis;
 
-                    octreeContainers[containerI] = new PointContainer(transform, rootNodes[z, y, x], new Vector3Int(x, y, z));
+                    if (firstInit) {
+                        octreeContainers[containerI] = new PointContainer(transform, new Vector3Int(x, y, z));
+                    }
+                    octreeContainers[containerI].SetOctree(rootNodes[z, y, x]);
                 }
             }
         }
 
-        for (int i = 0; i < totalContainers; i++) {
+        RefreshContainerMeshes();
+        if (!SNContentLoader.instance.contentLoaded) {
+            SNContentLoader.instance.OnContentLoaded += RefreshContainerMeshes;
+        }
+    }
+
+    void RefreshContainerMeshes() {
+        for (int i = 0; i < octreeContainers.Length; i++) {
             octreeContainers[i].UpdateMesh();
         }
     }
@@ -62,10 +75,6 @@ public class VoxelMesh : MonoBehaviour
             for (int y = 0; y < 5; y++) {
                 for (int x = 0; x < 5; x++) {
                     PointContainer container = octreeContainers[Globals.LinearIndex(x, y, z, 5)];
-
-                    //byte[] tempDensity;
-                    //byte[] tempTypes;
-                    //container.grid.GetFullGrids(out tempDensity, out tempTypes);
                     rootNodes[z, y, x].DeRasterizeGrid(container.grid.densityGrid, container.grid.typeGrid, 34);
                 }
             }
@@ -105,17 +114,18 @@ public class VoxelMesh : MonoBehaviour
         GameObject meshObj;
 
 
-        public PointContainer(Transform voxelandTransform, Octree _octree, Vector3Int containerIndex) {
+        public PointContainer(Transform voxelandTransform, Vector3Int containerIndex) {
             
             octreeIndex = containerIndex;
 
             Vector3 center = octreeIndex * 32 + Vector3.one * 16;
-            bounds = new Bounds(center, Vector3.one * 32);
-            
-            octree = _octree;
-            UpdateGrid();
+            bounds = new Bounds(center, Vector3.one * 34);
 
             CreateMeshObject(voxelandTransform);
+        }
+        public void SetOctree(Octree _octree) {
+            octree = _octree;
+            UpdateGrid();
         }
         public void UpdateGrid() {
 
@@ -143,8 +153,7 @@ public class VoxelMesh : MonoBehaviour
             MeshFilter filter = meshObj.AddComponent<MeshFilter>();
             
             MeshRenderer renderer = meshObj.AddComponent<MeshRenderer>();
-            renderer.sharedMaterial = Globals.GetBatchMat();
-            meshObj.transform.parent = voxelandTransform.transform;
+            meshObj.transform.SetParent(voxelandTransform);
         }
 
         public void DensityAction_Sphere(Vector3 sphereOrigin, float sphereRadius, BrushMode mode) {

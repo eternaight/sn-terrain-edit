@@ -43,12 +43,12 @@ public class BatchReadWriter : MonoBehaviour
         Octree[,,] octrees = new Octree[5, 5, 5];
         int countOctrees = 0;
 
-        bool batchdataExists = File.Exists(Globals.get.batchSourcePath + batchname);
+        bool batchdataExists = File.Exists(Globals.instance.batchSourcePath + batchname);
         byte batchLabel = RegionLoader.loader.GetLabel(batchIndex);
 
         if (batchdataExists) {
 
-            BinaryReader reader = new BinaryReader(File.Open(Globals.get.batchSourcePath + batchname, FileMode.Open));
+            BinaryReader reader = new BinaryReader(File.Open(Globals.instance.batchSourcePath + batchname, FileMode.Open));
             string version = $"Terrain Version: {reader.ReadInt32()}";
             yield return null;
             
@@ -200,9 +200,9 @@ public class BatchReadWriter : MonoBehaviour
         string batchname = string.Format("\\compiled-batch-{0}-{1}-{2}.optoctrees", batchIndex.x, batchIndex.y, batchIndex.z);
         busy = true;
         
-        Debug.Log($"Writing {batchname} to {Globals.get.batchOutputPath}");
+        Debug.Log($"Writing {batchname} to {Globals.instance.batchOutputPath}");
 
-        BinaryWriter writer = new BinaryWriter(File.Open(Globals.get.batchOutputPath + batchname, FileMode.OpenOrCreate));
+        BinaryWriter writer = new BinaryWriter(File.Open(Globals.instance.batchOutputPath + batchname, FileMode.OpenOrCreate));
         writer.Write(4);
             
         for (int x = 0; x < 5; x++) {

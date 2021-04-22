@@ -17,7 +17,7 @@ public class CameraControls : MonoBehaviour
     float zoomRange = -1000;
     float zoomStart = -1;
     public float speed = 2;
-
+    bool mouseOverUI;
     Brush brush;
 
     void Start() {
@@ -44,6 +44,7 @@ public class CameraControls : MonoBehaviour
         if (!moveLock) {
 
             Move();
+            mouseOverUI = IsMouseOverUI();
 
             // rotating cam
             dragging = Input.GetMouseButton(2);
@@ -61,15 +62,16 @@ public class CameraControls : MonoBehaviour
                 prevRotation = transform.parent.rotation.eulerAngles;
             }
 
-            if (IsMouseOverUI()) {
+            if (mouseOverUI) {
                 brush.DisableBrushGizmo();
             }
             else {
                 brush.BrushAction(Input.GetMouseButton(0));
+                
+                zoomLevel = Mathf.Clamp01(zoomLevel - Input.mouseScrollDelta.y * 0.01f);
+                transform.localPosition = new Vector3(0, 0, zoomStart + zoomRange * zoomLevel);
             }
 
-            zoomLevel = Mathf.Clamp01(zoomLevel - Input.mouseScrollDelta.y * 0.01f);
-            transform.localPosition = new Vector3(0, 0, zoomStart + zoomRange * zoomLevel);
         }
     }
 

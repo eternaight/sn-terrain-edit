@@ -7,7 +7,12 @@ public unsafe static class TextureDecoder
     const string dllName = "Texture2DDecoderNative";
 
     static TextureDecoder() {
-        var dllPath = Application.dataPath + "\\Scripts\\Asset Loading\\PlusPlus Script stuff\\Decoder DLLs" + (Environment.Is64BitProcess ? "\\x64" : "\\x86");
+        string dllPath;
+        if (Application.isEditor) {
+            dllPath = Application.dataPath + "\\Scripts\\Asset Loading\\PlusPlus Script stuff\\Decoder DLLs" + (Environment.Is64BitProcess ? "\\x64" : "\\x86");
+        } else {
+            dllPath = Application.dataPath + "\\Plugins" + (Environment.Is64BitProcess ? "\\x86_64" : "\\x86");
+        }
         AssetStudio.PInvoke.DllLoader.PreloadDll(dllName, dllPath);
     }
 

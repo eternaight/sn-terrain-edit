@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -7,6 +8,8 @@ public class SNContentLoader : MonoBehaviour
     public static SNContentLoader instance;
     public BlocktypeMaterial[] blocktypesData;
     Dictionary<string, List<int>> materialBlocktypes;
+    public event Action OnContentLoaded;
+    public bool contentLoaded = false;
 
     void Awake() {
         instance = this;
@@ -41,6 +44,10 @@ public class SNContentLoader : MonoBehaviour
         sw.Stop();
         EditorUI.DisableStatusBar();
         Debug.Log($"Set assets in {sw.ElapsedMilliseconds}ms");
+
+        contentLoaded = true;
+        if (OnContentLoaded != null)
+            OnContentLoaded();
     }
 
     void GetAssets(out AssetStudio.Texture2D[] loadedTextureAssets, out AssetStudio.Material[] loadedMaterialAssets) {
@@ -74,6 +81,7 @@ public class SNContentLoader : MonoBehaviour
 
         loadedMaterialAssets = materialAssets.ToArray();
         loadedTextureAssets = textureAssets.ToArray();
+        assetManager.Clear();
     }
 
     void LoadMaterialNames() {
@@ -162,7 +170,7 @@ public class SNContentLoader : MonoBehaviour
     }
 
     public static Material GetMaterialForType(int b) {
-        if (instance.blocktypesData[b] != null && instance.blocktypesData[b].textures != null) {
+        if (instance.contentLoaded) {
             return instance.blocktypesData[b].MakeMaterial();
         }
 
@@ -227,8 +235,22 @@ public class BlocktypeMaterial {
         if (textures == null) {
             textures = new Texture2D[6];
         }
+        // flowing lava materials have 8 textures
         if (pathIDs.Count > 6) {
-            textures[type] = texture;
+            if (type == 0) {
+                if (textures[2] != null) {
+                    textures[5] = texture;
+                } else {
+                    textures[2] = texture;
+                }
+            } else if (type == 1) {
+                if (textures[0] != null) {
+                    textures[3] = texture;
+                } else {
+                    textures[0] = texture;
+                }
+            }
+            // skipping SIG, noise and flow because irrelevant now
         } else {
             textures[pathIDs.IndexOf(pathID)] = texture;
         }
@@ -237,14 +259,14 @@ public class BlocktypeMaterial {
     public Material MakeMaterial() {
         Material mat;
         if (textures[3] != null) {
-            mat = new Material(Globals.get.batchCappedMat);
+            mat = new Material(Globals.instance.batchCappedMat);
 
             mat.SetTexture("_MainTex", textures[2]);
             mat.SetTexture("_BumpMap", textures[0]);
             mat.SetTexture("_SideTex", textures[5]);
             mat.SetTexture("_SideBumpMap", textures[3]);
         } else {
-            mat = new Material(Globals.get.batchMat);
+            mat = new Material(Globals.instance.batchMat);
 
             mat.SetTexture("_MainTex", textures[1]);
             mat.SetTexture("_BumpMap", textures[0]);

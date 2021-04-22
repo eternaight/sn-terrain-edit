@@ -7,7 +7,7 @@ public class UILoadWindow : UIWindow
 {
     public void LoadBatch() {
 
-        if (string.IsNullOrEmpty(Globals.get.gamePath)) {
+        if (string.IsNullOrEmpty(Globals.instance.gamePath)) {
             // display error
             return;
         }
