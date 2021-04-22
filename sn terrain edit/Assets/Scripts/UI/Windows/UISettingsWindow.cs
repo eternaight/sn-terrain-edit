@@ -1,13 +1,16 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class UISettingsWindow : UIWindow
 {
     public void ApplySettings() {
-
-        bool displayTypeColors = transform.GetChild(2).GetChild(4).GetChild(1).GetComponent<UICheckbox>().check;
-
-        Globals.get.UpdateBatchMaterial(displayTypeColors);
+        Globals.SetGamePath(transform.GetChild(2).GetChild(1).GetComponent<InputField>().text, true);
+    }
+    public override void EnableWindow()
+    {
+        transform.GetChild(2).GetChild(1).GetComponent<InputField>().text = Globals.get.gamePath;
+        base.EnableWindow();
     }
 }

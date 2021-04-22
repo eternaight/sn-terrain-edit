@@ -1,32 +1,49 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 public class SNContentLoader : MonoBehaviour
 {
     public static SNContentLoader instance;
-    BlocktypeMaterial[] blocktypesData;
+    public BlocktypeMaterial[] blocktypesData;
     Dictionary<string, List<int>> materialBlocktypes;
-    
-    AssetStudio.Texture2D[] loadedTextureAssets;
-    AssetStudio.Material[] loadedMaterialAssets;
 
     void Awake() {
         instance = this;
     } 
 
     void Start() {
-        LoadContent();
     }
 
-    void LoadContent() {
+    public IEnumerator LoadContent() {
 
+        System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+        sw.Start();
         LoadMaterialNames();
-        GetAssets();
-        SetMaterials();
-        SetTextures();
+        sw.Stop();
+        Debug.Log($"Loaded material names in {sw.ElapsedMilliseconds}ms");
+        EditorUI.UpdateStatusBar("Loading SN materials", 0);
+        yield return null;
+
+        sw.Restart();
+        AssetStudio.Texture2D[] textureAssets;
+        AssetStudio.Material[] materialAssets;
+        GetAssets(out textureAssets, out materialAssets);
+        sw.Stop();
+        Debug.Log($"Got assets in {sw.ElapsedMilliseconds}ms");
+        EditorUI.UpdateStatusBar("Loading SN materials", 0.5f);
+        yield return null;
+    
+        sw.Restart();
+        SetMaterials(materialAssets);
+        yield return null;
+        SetTextures(textureAssets);
+        sw.Stop();
+        EditorUI.DisableStatusBar();
+        Debug.Log($"Set assets in {sw.ElapsedMilliseconds}ms");
     }
 
-    void GetAssets() {
+    void GetAssets(out AssetStudio.Texture2D[] loadedTextureAssets, out AssetStudio.Material[] loadedMaterialAssets) {
 
         string bundleName = "\\resources.assets";
         string gamePath = "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Subnautica";
@@ -60,8 +77,8 @@ public class SNContentLoader : MonoBehaviour
     }
 
     void LoadMaterialNames() {
-
-        string[] lines = System.IO.File.ReadAllLines(Application.dataPath + "//Scripts//Asset Loading//blocktypeStrings.txt");
+        string combinedString = Resources.Load<TextAsset>("blocktypeStrings").text;
+        string[] lines = combinedString.Split(new[] {System.Environment.NewLine}, System.StringSplitOptions.None);
         blocktypesData = new BlocktypeMaterial[255];
         materialBlocktypes = new Dictionary<string, List<int>>();
 
@@ -75,7 +92,7 @@ public class SNContentLoader : MonoBehaviour
             if (materialName.Contains("deco")) {
                 nondecoName = materialName.Split(' ')[0];
             }
-            // No non-decorated Sand01ToCoral15 mat, TODO: some struct between Texture and Material
+            
             if (nondecoName == "Sand01ToCoral15") {
                 nondecoName = "Sand01";
             }
@@ -96,8 +113,8 @@ public class SNContentLoader : MonoBehaviour
         }
     }
 
-    void SetTextures() {
-        foreach (AssetStudio.Texture2D textureAsset in loadedTextureAssets) {
+    void SetTextures(AssetStudio.Texture2D[] textureAssets) {
+        foreach (AssetStudio.Texture2D textureAsset in textureAssets) {
             List<int> blocktypes = new List<int>();
             if (IsTextureNeeded(textureAsset.m_PathID, out blocktypes)) {
                 byte[] image_data = textureAsset.image_data.GetData();
@@ -110,14 +127,15 @@ public class SNContentLoader : MonoBehaviour
                 }
 
                 Texture2D newtexture = new Texture2D(textureAsset.m_Width, textureAsset.m_Height);
-
+                Color[] colors = new Color[image.Length / 4];
                 for (long i = 0; i < image.Length; i += 4) {
                     long pixel_index = i / 4;
                     int x = (int)(pixel_index % textureAsset.m_Width);
                     int y = (int)(pixel_index / textureAsset.m_Width);
                     Color color = new Color(image[i + 2] / 255f, image[i + 1] / 255f, image[i] / 255f, image[i + 3] / 255f);
-                    newtexture.SetPixel(x, y, color);
+                    colors[i / 4] = color;
                 }
+                newtexture.SetPixels(colors);
                 newtexture.Apply();
 
                 int textureType = DetermineTextureType(textureAsset.m_Name);
@@ -128,8 +146,8 @@ public class SNContentLoader : MonoBehaviour
         }
     }
 
-    void SetMaterials() {
-        foreach (AssetStudio.Material materialAsset in loadedMaterialAssets) {
+    void SetMaterials(AssetStudio.Material[] materialAssets) {
+        foreach (AssetStudio.Material materialAsset in materialAssets) {
             List<long> texturePathIDs = new List<long>();
             foreach(KeyValuePair<string, AssetStudio.UnityTexEnv> pair in materialAsset.m_SavedProperties.m_TexEnvs) {
                 texturePathIDs.Add(pair.Value.m_Texture.m_PathID);
@@ -144,7 +162,7 @@ public class SNContentLoader : MonoBehaviour
     }
 
     public static Material GetMaterialForType(int b) {
-        if (instance.blocktypesData[b] != null) {
+        if (instance.blocktypesData[b] != null && instance.blocktypesData[b].textures != null) {
             return instance.blocktypesData[b].MakeMaterial();
         }
 
@@ -178,12 +196,32 @@ public class SNContentLoader : MonoBehaviour
     } 
 }
 
-class BlocktypeMaterial {
+public class BlocktypeMaterial {
     public string materialName;
     public string trueName;
     public int blocktype;
     public List<long> pathIDs = new List<long>();
     public Texture2D[] textures;
+
+    public Texture2D MainTexture {
+        get {
+            if (textures[3] != null) {
+                return textures[2];
+            }
+            return textures[1];
+        }
+    }
+    public Texture2D SideTexture {
+        get {
+            return textures[5];
+        }
+    }
+
+    public bool ExistsInGame {
+        get { 
+            return textures != null;
+        }
+    }
 
     public void SetTexture(int type, long pathID, Texture2D texture) {
         if (textures == null) {

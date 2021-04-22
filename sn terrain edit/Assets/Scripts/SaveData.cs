@@ -16,7 +16,7 @@ public class SaveData : MonoBehaviour
         // read from save
         Load();
 
-        Globals.SetBatchInputPath(data.GetValue(Globals.sourcePathKey), false);
+        Globals.SetGamePath(data.GetValue(Globals.sourcePathKey), false);
         Globals.SetBatchOutputPath(data.GetValue(Globals.outputPathKey), false);
     }
 

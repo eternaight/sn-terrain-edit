@@ -134,12 +134,14 @@ public class MeshBuilder : MonoBehaviour
                         int i = Globals.LinearIndex((int)dcCube.x, (int)dcCube.y, (int)dcCube.z, size);
                         verticesOfNodes[i].AddNeigFace(meshFace);
                         verticesOfNodes[i].isSet = true;
+                        verticesOfNodes[i].addedToVertexArray = false;
                     }
                 }
             }
 
             for (int i = 0; i < verticesOfNodes.Length; i++) { 
-                if (verticesOfNodes[i].isSet) {
+                if (verticesOfNodes[i].isSet && !verticesOfNodes[i].addedToVertexArray) {
+                    verticesOfNodes[i].addedToVertexArray = true;
                     verticesOfNodes[i].vertIndex = vertices.Count;
                     vertices.Add(verticesOfNodes[i].ComputePos() + vertexOffsetSum);
                     vertexUVs.Add(BlockTypeToUV(verticesOfNodes[i].GetBlockType()));
@@ -150,16 +152,21 @@ public class MeshBuilder : MonoBehaviour
 
         // Segmenting geometry into separate meshes (to overcome vertex limit)
         int submeshCount = blocktypes.Length;
-        List<int>[] meshIndexes = new List<int>[submeshCount];
         int nextStart = 0;
         List<SubMeshDescriptor> subMeshes = new List<SubMeshDescriptor>();
+        
+        Mesh mesh = new Mesh();
+        mesh.subMeshCount = submeshCount;
+        mesh.vertices = vertices.ToArray();
+        mesh.uv = vertexUVs.ToArray();
         
         for (int k = 0; k < blocktypes.Length; k++) {
             
             int blocktype = blocktypes[k];
             int submeshStart = nextStart;
             int countIndexes = 0;
-            meshIndexes[k] = new List<int>();
+            List<int> submeshIndexes = new List<int>();
+            int basevertex = 0;
 
             for (int i = 0; i < submeshFaces[blocktype].Count; i++) {
                 Face faceNow = submeshFaces[blocktype][i];
@@ -173,28 +180,21 @@ public class MeshBuilder : MonoBehaviour
                 };
                 
                 // A, B, C, D
-                meshIndexes[k].Add(verticesOfNodes[vertIndices[0]].vertIndex);
-                meshIndexes[k].Add(verticesOfNodes[vertIndices[1]].vertIndex);
-                meshIndexes[k].Add(verticesOfNodes[vertIndices[2]].vertIndex);
-                meshIndexes[k].Add(verticesOfNodes[vertIndices[3]].vertIndex);
+                submeshIndexes.Add(verticesOfNodes[vertIndices[0]].vertIndex);
+                submeshIndexes.Add(verticesOfNodes[vertIndices[1]].vertIndex);
+                submeshIndexes.Add(verticesOfNodes[vertIndices[2]].vertIndex);
+                submeshIndexes.Add(verticesOfNodes[vertIndices[3]].vertIndex);
                 countIndexes += 4;
+
+                basevertex = Math.Min(verticesOfNodes[vertIndices[0]].vertIndex, basevertex);
+                basevertex = Math.Min(verticesOfNodes[vertIndices[1]].vertIndex, basevertex);
+                basevertex = Math.Min(verticesOfNodes[vertIndices[2]].vertIndex, basevertex);
+                basevertex = Math.Min(verticesOfNodes[vertIndices[3]].vertIndex, basevertex);
             }
-
-            subMeshes.Add(new SubMeshDescriptor(submeshStart, countIndexes, MeshTopology.Quads));
+            
+            mesh.SetIndices(submeshIndexes.ToArray(), MeshTopology.Quads, k, false);
+            mesh.SetSubMesh(k, new SubMeshDescriptor(submeshStart, countIndexes, MeshTopology.Quads));
             nextStart += countIndexes;
-        }
-    
-        Mesh mesh = new Mesh();
-        mesh.vertices = vertices.ToArray();
-
-        mesh.uv = vertexUVs.ToArray();
-
-        mesh.subMeshCount = submeshCount;
-        for (int i = 0; i < submeshCount; i++) {
-            mesh.SetIndices(meshIndexes[i].ToArray(), MeshTopology.Quads, i);
-        }
-        for (int i = 0; i < subMeshes.Count; i++) {
-            mesh.SetSubMesh(i, subMeshes[i]);
         }
         
         mesh.RecalculateNormals();
@@ -278,6 +278,7 @@ public class MeshBuilder : MonoBehaviour
         public List<Face> adjFaces;
         public int vertIndex;
         public bool isSet;
+        public bool addedToVertexArray;
 
         public Vector3 ComputePos() {
 

@@ -10,11 +10,16 @@ public class Globals : MonoBehaviour {
     public Material brushGizmoMat;
     public Texture2D colorMap;
     public Color[] brushColors;
-    public string batchSourcePath;
+    public string gamePath;
+    public string batchSourcePath {
+        get {
+            return gamePath + gameToBatchPostfix;
+        }
+    }
     public string batchOutputPath;
     public const int threadGroupSize = 8;
 
-    public const string sourcePathKey = "sourcePath";
+    public const string sourcePathKey = "gamePath";
     public const string outputPathKey = "outputPath";
     public const string gameToBatchPostfix = "\\Subnautica_Data\\StreamingAssets\\SNUnmanagedData\\Build18\\CompiledOctreesCache";
     public const string gameToAddressablesPostfix = "\\Subnautica_Data\\StreamingAssets\\aa\\StandaloneWindows64";
@@ -66,8 +71,8 @@ public class Globals : MonoBehaviour {
         }
     }
 
-    public static void SetBatchInputPath(string path, bool save) {
-        get.batchSourcePath = path;
+    public static void SetGamePath(string path, bool save) {
+        get.gamePath = path;
         
         if (save)
             SaveData.WriteKey(sourcePathKey, path);

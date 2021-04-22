@@ -46,7 +46,6 @@ public class Brush : MonoBehaviour
                     if (hit.collider.gameObject.GetComponentInParent<VoxelMesh>()) {
                         if (mode == BrushMode.Eyedropper) {
                             SetBrushMaterial(hit.collider.gameObject.GetComponentInParent<VoxelMesh>().SampleBlocktype(hit.point, ray));
-                            FindObjectOfType<UIBrushWindow>().UpdateBlocktypeDisplay();
                         } else {
                             hit.collider.gameObject.GetComponentInParent<VoxelMesh>().DensityAction_Sphere(hit.point, Brush.brushSize, mode);
                         }
@@ -83,6 +82,9 @@ public class Brush : MonoBehaviour
 
     public static void SetBrushMaterial(byte value) {
         Brush.selectedType = value;
+        UIBrushWindow brushUI = FindObjectOfType<UIBrushWindow>();
+        if (brushUI)
+            brushUI.UpdateBlocktypeDisplay();
     }
     public static void SetBrushSize(float t) {
         brushSize = Mathf.Lerp(minBrushSize, maxBrushSize, t);
