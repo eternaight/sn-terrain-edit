@@ -2,7 +2,7 @@
 WIP Application to create and edit Subnautica's terrain.
 
 Project files for Unity 2019.4.9f1.
-App can be downloaded [here.](https://drive.google.com/file/d/1V7-iobYlalyzOUS6Rf_Td2TjVUHcHY6S/view?usp=sharing)
+App can be downloaded [here.](https://drive.google.com/file/d/1GAety1gV-B_VN4RnC6nr9WEhEx-laAo2/view?usp=sharing)
 
 Requires Subnautica, experimental branch recommended.
 
@@ -16,7 +16,7 @@ Edit Subnautica's voxel terrain, and its materials.
 
 ## Usage
 1. Make sure you have Subnautica installed.
-2. Paste the path to your 'Subnautica' folder into the 'Settings' window, and apply.
+2. In the editor, paste the path to your 'Subnautica' folder into the 'Settings' window, and apply.
 3. Open the 'Materials' window and load materials. This can take quite a long time (~5 minutes on Stable SN, ~30 seconds on Exp)
 4. Load the batch by index using the 'Load' window. Batch index can be learned in-game using F1 menu.
 5. Edit the batch using the 'Brush' window.
