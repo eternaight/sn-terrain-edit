@@ -2,7 +2,7 @@
 WIP Application to create and edit Subnautica's terrain.
 
 Project files for Unity 2019.4.9f1.
-App can be downloaded [here.](https://drive.google.com/file/d/1GAety1gV-B_VN4RnC6nr9WEhEx-laAo2/view?usp=sharing)
+App can be downloaded [here.](https://www.nexusmods.com/subnautica/mods/728?tab=files)
 
 Requires Subnautica, experimental branch recommended.
 
