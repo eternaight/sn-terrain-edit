@@ -38,7 +38,7 @@ public class BatchReadWriter : MonoBehaviour
         string batchname = string.Format("\\compiled-batch-{0}-{1}-{2}.optoctrees", batchIndex.x, batchIndex.y, batchIndex.z);
         busy = true;
 
-        Debug.Log("Reading "+ batchname);
+        //Debug.Log("Reading "+ batchname);
 
         Octree[,,] octrees = new Octree[5, 5, 5];
         int countOctrees = 0;

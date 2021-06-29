@@ -9,16 +9,18 @@ public class Batch : MonoBehaviour
     public int octreeSize;
     public Vector3Int batchIndex;
     public Octree[,,] rootNodes;
+    int lod;
 
     VoxelMesh _voxelMesh;
 
     public event Action OnBatchConstructed;
 
-    public void Setup() {
+    public void Setup(int _lod) {
 
         drawn = false;
         octreeSize = 32;
-        _voxelMesh = FindObjectOfType<VoxelMesh>();
+        _voxelMesh = gameObject.AddComponent<VoxelMesh>();
+        lod = _lod;
 
         transform.position = (batchIndex - RegionLoader.loader.start) * octreeSize * 5;
 
@@ -36,18 +38,10 @@ public class Batch : MonoBehaviour
         BatchReadWriter.readWriter.ReadBatch(this);
     }
 
-    public void StartConstructingBatch_MatGallery() {
-        BatchReadWriter.readWriter.DoMatGalleryBatch(this);
-
-        BoxCollider coll = gameObject.AddComponent<BoxCollider>();
-        coll.center = new Vector3(octreeSize * 2.5f, octreeSize * 2.5f, octreeSize * 2.5f);
-        coll.size = new Vector3(octreeSize * 5, octreeSize * 5, octreeSize * 5);
-        coll.isTrigger = true;
-    }
-
     public void ConstructBatch() {
-        
-        _voxelMesh.Init(rootNodes);
+        if (rootNodes != null) {
+            _voxelMesh.Init(rootNodes, lod);
+        }
         OnBatchConstructed();
     }
 
@@ -58,11 +52,12 @@ public class Batch : MonoBehaviour
 
     public OctNodeData GetNode(Vector3 pos) {
         Vector3 localPos = pos - rootNodes[0, 0, 0].Origin;
-        int x = Mathf.Clamp((int)(localPos.x / 32f), 0, 4);
-        int y = Mathf.Clamp((int)(localPos.y / 32f), 0, 4);
-        int z = Mathf.Clamp((int)(localPos.z / 32f), 0, 4);
+        int x = (int)(localPos.x / 32f);
+        int y = (int)(localPos.y / 32f);
+        int z = (int)(localPos.z / 32f);
 
-        if (z < 5 && y < 5 && x < 5) {
+        int _cps = VoxelMesh.CONTAINERS_PER_SIDE;
+        if (z < _cps && y < _cps && x < _cps && x >= 0 && y >= 0 && z >= 0) {
             return rootNodes[z, y, x].GetNodeFromPos(pos);
         }
         else {

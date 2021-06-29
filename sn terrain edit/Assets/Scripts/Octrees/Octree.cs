@@ -64,11 +64,11 @@ public class Octree {
     }
 
 
-    public void Rasterize(byte[] densityGrid, byte[] typeGrid, int side) {
-        node.RasterizeTree(densityGrid, typeGrid, side, node.position);
+    public void Rasterize(byte[] densityGrid, byte[] typeGrid, int side, int maxHeight) {
+        node.RasterizeTree(densityGrid, typeGrid, side, node.position, 0, maxHeight);
     }
-    public void DeRasterizeGrid(byte[,,] densityGrid, byte[,,] typeGrid, int side) {
-        node.DeRasterizeGrid(densityGrid, typeGrid, side, node.position);
+    public void DeRasterizeGrid(byte[,,] densityGrid, byte[,,] typeGrid, int side, int maxHeight) {
+        node.DeRasterizeGrid(densityGrid, typeGrid, side, node.position, 0, maxHeight);
     }
 
 
@@ -227,48 +227,51 @@ public class Octree {
         }
 
         
-        public void RasterizeTree(byte[] densityGrid, byte[] typeGrid, int thisCubeSize, Vector3 octreeOrigin) {
+        public void RasterizeTree(byte[] densityGrid, byte[] typeGrid, int thisCubeSize, Vector3 octreeOrigin, int height, int maxHeight) {
 
-            if (children != null) {
+            if (children != null && height < maxHeight) {
                 for (int b = 0; b < 8; b++) {
-                    children[b].RasterizeTree(densityGrid, typeGrid, thisCubeSize / 2, octreeOrigin);
+                    children[b].RasterizeTree(densityGrid, typeGrid, thisCubeSize / 2, octreeOrigin, height + 1, maxHeight);
                 }
             } else {
                 
-                float thisDensity = data.GetDensity();
-                Vector3 localPos = this.position - octreeOrigin;
+                Vector3 localPos = (position - octreeOrigin) / (Mathf.Pow(2, VoxelMesh.LEVEL_OF_DETAIL));
                 Vector3Int start = new Vector3Int((int)localPos.x, (int)localPos.y, (int)localPos.z);
 
                 for (int k = start.z; k < start.z + thisCubeSize; ++k) {
                     for (int j = start.y; j < start.y + thisCubeSize; ++j) {
                         for (int i = start.x; i < start.x + thisCubeSize; ++i) {
-                            typeGrid[Globals.LinearIndex(i, j, k, 32)] = data.type;
-                            densityGrid[Globals.LinearIndex(i, j, k, 32)] = data.signedDist;
+                            try {
+                            typeGrid[Globals.LinearIndex(i, j, k, VoxelMesh.RESOLUTION)] = data.type;
+                            densityGrid[Globals.LinearIndex(i, j, k, VoxelMesh.RESOLUTION)] = data.signedDist;
+                            } catch (Exception e) {
+                                Debug.Log(i + " " + j + " " + k);
+                                throw e;
+                            }
                         }
                     }
                 }
             }
         }
 
-        public void DeRasterizeGrid(byte[,,] densityGrid, byte[,,] typeGrid, int gridSide, Vector3 octreeOrigin) {
-            if (this.size > 1) {
+        public void DeRasterizeGrid(byte[,,] densityGrid, byte[,,] typeGrid, int gridSide, Vector3 octreeOrigin, int height, int maxHeight) {
+            if (size > 1 && height < maxHeight) {
                 Subdivide();
 
                 for (int b = 0; b < 8; b++) {
-                    children[b].DeRasterizeGrid(densityGrid, typeGrid, gridSide, octreeOrigin);
+                    children[b].DeRasterizeGrid(densityGrid, typeGrid, gridSide, octreeOrigin, height + 1, maxHeight);
                 }
 
-                this.data = new OctNodeData(MostCommonChildType(), AverageChildDensity(), 0);
+                data = new OctNodeData(MostCommonChildType(), AverageChildDensity(), 0);
 
                 if (IsMonotone()) StripChildren();
             }
             else {
-                Vector3 localPos = this.position - octreeOrigin;
-                int gridIndex = Globals.LinearIndex((int)localPos.x + 1, (int)localPos.y + 1, (int)localPos.z + 1, gridSide);
+                Vector3 localPos = position - octreeOrigin;
 
                 byte type = typeGrid[(int)localPos.x + 1, (int)localPos.y + 1, (int)localPos.z + 1];
                 byte signedDist = densityGrid[(int)localPos.x + 1, (int)localPos.y + 1, (int)localPos.z + 1];
-                this.data = new OctNodeData(type, signedDist, 0);
+                data = new OctNodeData(type, signedDist, 0);
             }
         }
 
@@ -277,10 +280,8 @@ public class Octree {
             float densityNow = Mathf.Max(Mathf.Clamp(sampleDensity, -1, 1), data.GetDensity());
 
             bool nodeNowFar = Mathf.Abs(sampleDensity) > 1;
-            bool isSolid = sampleDensity > 0;
 
             data.type = Brush.selectedType;
-            //if (nodeNowFar && !isSolid) data.type = 0;
 
             if (nodeNowFar) data.signedDist = 0;
             else data.SetDensity(densityNow);
@@ -301,8 +302,6 @@ public class Octree {
                     children[b].ApplyDensityFunction(density);
                 }
             }
-
-            //if (IsMonotone()) StripChildren();
         }
 
         bool IsMonotone() {

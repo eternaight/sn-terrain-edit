@@ -66,7 +66,7 @@ public class Globals : MonoBehaviour {
         return x + y * dim.x + z * dim.x * dim.y;
     }
     
-    public static byte[] _3DArrayTo1D(byte[,,] array) {
+    public static byte[] CubeToLineArray(byte[,,] array) {
         Vector3Int size = new Vector3Int(array.GetLength(0), array.GetLength(1), array.GetLength(2));
         byte[] new_array = new byte[size.x * size.y * size.z];
 
@@ -80,7 +80,7 @@ public class Globals : MonoBehaviour {
 
         return new_array;
     }
-    public static byte[,,] _1DArrayTo3D(byte[] array, Vector3Int size) {
+    public static byte[,,] LineToCubeArray(byte[] array, Vector3Int size) {
         byte[,,] new_array = new byte[size.x, size.y, size.z];
 
         for (int k = 0; k < size.z; ++k) {

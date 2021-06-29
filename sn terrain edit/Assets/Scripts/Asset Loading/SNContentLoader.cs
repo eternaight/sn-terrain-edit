@@ -53,8 +53,7 @@ public class SNContentLoader : MonoBehaviour
     void GetAssets(out AssetStudio.Texture2D[] loadedTextureAssets, out AssetStudio.Material[] loadedMaterialAssets) {
 
         string bundleName = "\\resources.assets";
-        string gamePath = "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Subnautica";
-        string resourcesPath = string.Concat(gamePath, "\\Subnautica_Data", bundleName);
+        string resourcesPath = string.Concat(Globals.instance.gamePath, "\\Subnautica_Data", bundleName);
         string[] files = new string[1];
         files[0] = resourcesPath;
 

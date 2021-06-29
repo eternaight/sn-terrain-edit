@@ -33,7 +33,7 @@ public class MeshBuilder : MonoBehaviour
         int numPoints = pointCounts.x * pointCounts.y * pointCounts.z;
 
         int numVoxels = (pointCounts.x - 1) * (pointCounts.y - 1) * (pointCounts.z - 1);
-        int maxFaceCount = numVoxels;
+        int maxFaceCount = numVoxels * 6;
 
         // Always create buffers in editor (since buffers are released immediately to prevent memory leak)
         // Otherwise, only create if null or if size has changed
@@ -60,17 +60,17 @@ public class MeshBuilder : MonoBehaviour
         }
     }
 
-    public List<Mesh> GenerateMesh(byte[] densityGrid, byte[] typeGrid, Vector3Int size, Vector3 offset, out int[] blocktypes) {
+    public List<Mesh> GenerateMesh(byte[] densityGrid, byte[] typeGrid, Vector3Int resolution, Vector3 offset, out int[] blocktypes) {
 
         // Setting data inside shader
 
-        //Debug.Log($"Creating buffers of size: {size.ToString()}");
+        //Debug.Log($"Creating buffers of size: {resolution.ToString()}");
 
-        CreateBuffers(size);
+        CreateBuffers(resolution);
 
-        int numThreads = Mathf.CeilToInt ((size.x) / (float) Globals.threadGroupSize);
+        int numThreads = Mathf.CeilToInt ((resolution.x) / (float) Globals.threadGroupSize);
 
-        if (typeGrid == null) typeGrid = new byte[size.x * size.y * size.z];
+        if (typeGrid == null) typeGrid = new byte[resolution.x * resolution.y * resolution.z];
 
     	int[] densityIntGrid = densityGrid.Select(x => (int)x).ToArray();
     	int[] typeIntGrid = typeGrid.Select(x => (int)x).ToArray();
@@ -84,14 +84,14 @@ public class MeshBuilder : MonoBehaviour
         shader.SetBuffer (kernel, "density", densityBuffer);
         shader.SetBuffer (kernel, "faces", faceBuffer);
 
-        shader.SetInt ("numPointsX", size.x);
-        shader.SetInt ("numPointsY", size.y);
-        shader.SetInt ("numPointsZ", size.z);
+        shader.SetInt ("numPointsX", resolution.x);
+        shader.SetInt ("numPointsY", resolution.y);
+        shader.SetInt ("numPointsZ", resolution.z);
         shader.SetVector("meshOffset", offset);
         
         shader.Dispatch (kernel, numThreads, numThreads, numThreads);
 
-        // Retrieving data from sahder
+        // Retrieving data from shader
 
         ComputeBuffer.CopyCount (faceBuffer, triCountBuffer, 0);
         int[] triCountArray = new int[1];
@@ -102,13 +102,13 @@ public class MeshBuilder : MonoBehaviour
 
         faceBuffer.GetData (faces, 0, 0, numFaces);
 
-        return MakeMeshes(faces, size, offset, out blocktypes);
+        return MakeMeshes(faces, resolution, offset, out blocktypes);
     } 
 
-    List<Mesh> MakeMeshes(Face[] faces, Vector3Int size, Vector3 offset, out int[] blocktypes) {
+    List<Mesh> MakeMeshes(Face[] faces, Vector3Int resolution, Vector3 offset, out int[] blocktypes) {
         
         // calculate vertex positions
-        VoxelVertex[] verticesOfNodes = new VoxelVertex[size.x * size.y * size.z];
+        VoxelVertex[] verticesOfNodes = new VoxelVertex[resolution.x * resolution.y * resolution.z];
         List<Vector3> vertices = new List<Vector3>();
         List<Vector2> vertexUVs = new List<Vector2>();
 
@@ -125,13 +125,14 @@ public class MeshBuilder : MonoBehaviour
         blocktypes = submeshFaces.Keys.ToArray();
 
         Vector3 vertexOffsetSum = Vector3.one * -0.5f + offset;
+        float scaleFactor = Mathf.Pow(2, VoxelMesh.LEVEL_OF_DETAIL);
         foreach (int blocktype in blocktypes) {
 
             foreach (Face meshFace in submeshFaces[blocktype]) {
                 for (int v = 0; v < 4; v++) {
                     Vector3 dcCube = meshFace[v];
-                    if (dcCube.x >= 0 && dcCube.x < 34 && dcCube.y >= 0 && dcCube.y < 34 && dcCube.z >= 0 && dcCube.z < 34) {
-                        int i = Globals.LinearIndex((int)dcCube.x, (int)dcCube.y, (int)dcCube.z, size);
+                    if (dcCube.x >= 0 && dcCube.x < resolution.x && dcCube.y >= 0 && dcCube.y < resolution.y && dcCube.z >= 0 && dcCube.z < resolution.z) {
+                        int i = Globals.LinearIndex((int)dcCube.x, (int)dcCube.y, (int)dcCube.z, resolution);
                         verticesOfNodes[i].AddNeigFace(meshFace);
                         verticesOfNodes[i].isSet = true;
                         verticesOfNodes[i].addedToVertexArray = false;
@@ -143,14 +144,12 @@ public class MeshBuilder : MonoBehaviour
                 if (verticesOfNodes[i].isSet && !verticesOfNodes[i].addedToVertexArray) {
                     verticesOfNodes[i].addedToVertexArray = true;
                     verticesOfNodes[i].vertIndex = vertices.Count;
-                    vertices.Add(verticesOfNodes[i].ComputePos() + vertexOffsetSum);
+                    vertices.Add((verticesOfNodes[i].ComputePos() + vertexOffsetSum) * scaleFactor);
                     vertexUVs.Add(BlockTypeToUV(verticesOfNodes[i].GetBlockType()));
                 }
             }
         }
 
-
-        // Segmenting geometry into separate meshes (to overcome vertex limit)
         int submeshCount = blocktypes.Length;
         int nextStart = 0;
         List<SubMeshDescriptor> subMeshes = new List<SubMeshDescriptor>();
@@ -170,13 +169,13 @@ public class MeshBuilder : MonoBehaviour
 
             for (int i = 0; i < submeshFaces[blocktype].Count; i++) {
                 Face faceNow = submeshFaces[blocktype][i];
-                if (!faceNow.IsPartOfMesh()) continue;
+                if (!faceNow.IsPartOfMesh(resolution.x)) continue;
 
                 int[] vertIndices = {
-                    Globals.LinearIndex((int)faceNow[0].x, (int)faceNow[0].y, (int)faceNow[0].z, size),
-                    Globals.LinearIndex((int)faceNow[1].x, (int)faceNow[1].y, (int)faceNow[1].z, size),
-                    Globals.LinearIndex((int)faceNow[2].x, (int)faceNow[2].y, (int)faceNow[2].z, size),
-                    Globals.LinearIndex((int)faceNow[3].x, (int)faceNow[3].y, (int)faceNow[3].z, size)
+                    Globals.LinearIndex((int)faceNow[0].x, (int)faceNow[0].y, (int)faceNow[0].z, resolution),
+                    Globals.LinearIndex((int)faceNow[1].x, (int)faceNow[1].y, (int)faceNow[1].z, resolution),
+                    Globals.LinearIndex((int)faceNow[2].x, (int)faceNow[2].y, (int)faceNow[2].z, resolution),
+                    Globals.LinearIndex((int)faceNow[3].x, (int)faceNow[3].y, (int)faceNow[3].z, resolution)
                 };
                 
                 // A, B, C, D
@@ -254,11 +253,11 @@ public class MeshBuilder : MonoBehaviour
             return sizeof(float) * 3 * 5 + sizeof(int);
         }
 
-        public bool IsPartOfMesh() {
-            return IsVertexPartOfMesh(0) && IsVertexPartOfMesh(1) && IsVertexPartOfMesh(2) && IsVertexPartOfMesh(3);
+        public bool IsPartOfMesh(int side) {
+            return IsVertexPartOfMesh(0, side) && IsVertexPartOfMesh(1, side) && IsVertexPartOfMesh(2, side) && IsVertexPartOfMesh(3, side);
         }
-        bool IsVertexPartOfMesh(int i) {
-            return this[i].x > 0 && this[i].y > 0 && this[i].z > 0 && this[i].x < 34 && this[i].y < 34 && this[i].z < 34;
+        bool IsVertexPartOfMesh(int i, int side) {
+            return this[i].x > 0 && this[i].y > 0 && this[i].z > 0 && this[i].x < side && this[i].y < side && this[i].z < side;
         }
         public Vector3 GetNormal() {
             return Vector3.Cross(this[0] - this[1], this[0] - this[3]).normalized;
@@ -267,8 +266,8 @@ public class MeshBuilder : MonoBehaviour
         public int CompareTo(object obj)
         {
             if (obj is Face) {
-                if (this.type == ((Face)obj).type) return 0;
-                return this.type > ((Face)obj).type ? -1 : 1;
+                if (type == ((Face)obj).type) return 0;
+                return type > ((Face)obj).type ? -1 : 1;
             }
             return -1;
         }

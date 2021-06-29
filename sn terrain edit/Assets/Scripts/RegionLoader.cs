@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -14,12 +14,27 @@ public class RegionLoader : MonoBehaviour
     public bool doNextBatch = false;
 
     public Batch[] loadedBatches;
+    public VoxelMesh[] loadedMeshes;
 
     public event Action OnLoadFinish;
     public event Action OnRegionSaved;
+    int batchLod;
+    bool placeUsingCoords = false;
 
     void Awake() {
         loader = this;
+    }
+
+    public void LoadMap() {
+        batchLod = 4;
+        placeUsingCoords = true;
+        LoadRegion(new Vector3Int(0, 18, 0), new Vector3Int(32, 19, 32));
+    }
+
+    public void LoadSingleBatch(Vector3Int batch) {
+        batchLod = 0;
+        placeUsingCoords = false;
+        LoadRegion(batch, batch);
     }
 
     public void LoadRegion(Vector3Int start, Vector3Int end) {
@@ -48,7 +63,7 @@ public class RegionLoader : MonoBehaviour
         }
     }
 
-    void CreateBatch(Vector3Int coords, bool queueNextBatch, bool placeUsingCoords = false) {
+    void CreateBatch(Vector3Int coords, bool queueNextBatch) {
 
         GameObject batchObj = new GameObject($"batch-{coords.x}-{coords.y}-{coords.z}");
         Batch newBatch = batchObj.AddComponent<Batch>();
@@ -57,7 +72,11 @@ public class RegionLoader : MonoBehaviour
 
         newBatch.batchIndex = coords;
 
-        newBatch.Setup();
+        if (placeUsingCoords) {
+            batchObj.transform.position = coords * 160;
+        }
+
+        newBatch.Setup(batchLod);
     }
 
     void PushQueue() {
@@ -65,7 +84,8 @@ public class RegionLoader : MonoBehaviour
     }
 
     IEnumerator RegionLoad() {
-
+        
+        int startBatch = GetLabel(start);
         int endBatch = GetLabel(end) + 1;
 
         Vector3Int regionSize = end - start + Vector3Int.one;
@@ -84,9 +104,9 @@ public class RegionLoader : MonoBehaviour
                     int batchNow = GetLabel(batchCoords);
 
                     doNextBatch = false;
-                    CreateBatch(batchCoords, true, true);
+                    CreateBatch(batchCoords, true);
 
-                    loadPercent = (float)GetLabel(batchCoords) / endBatch;
+                    loadPercent = (float)GetLabel(batchCoords) / (endBatch - startBatch);
                     EditorUI.UpdateStatusBar($"Loading {batchname}", loadPercent);
 
                     while(!doNextBatch) {
@@ -96,9 +116,7 @@ public class RegionLoader : MonoBehaviour
             }   
         }
 
-        if (OnLoadFinish != null)        
-            OnLoadFinish();
-
+        OnLoadFinish?.Invoke();
         Camera.main.gameObject.SendMessage("OnRegionLoad");
     }
 
@@ -135,7 +153,7 @@ public class RegionLoader : MonoBehaviour
     public byte GetLabel(int x, int y, int z) {
 
         Vector3Int regionSize = end - start + Vector3Int.one;
-        return (byte)(z * regionSize.y * regionSize.x + y * regionSize.x + x);
+        return (byte)(y * regionSize.x * regionSize.z + z * regionSize.x + x);
     }
     public Batch GetBatchFromLabel(int label) {
         Vector3Int regionSize = end - start + Vector3Int.one;

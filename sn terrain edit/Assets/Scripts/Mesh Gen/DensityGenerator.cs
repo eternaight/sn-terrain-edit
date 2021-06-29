@@ -74,7 +74,7 @@ public class DensityGenerator : MonoBehaviour
 
         }
     
-        VoxelMesh.VoxelGrid grid = new VoxelMesh.VoxelGrid(densityPoints, typePoints, Vector3Int.one * pointCount);
+        VoxelMesh.VoxelGrid grid = new VoxelMesh.VoxelGrid(densityPoints, typePoints);
 
         return grid;
     }

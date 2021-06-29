@@ -25,7 +25,7 @@ public class DebugOctreeDisplay : MonoBehaviour
 
                         densityGrid = new byte[32*32*32];
                         byte[] typeGrid = new byte[32*32*32];
-                        octrees[k, j, i].Rasterize(densityGrid, typeGrid, 32);
+                        octrees[k, j, i].Rasterize(densityGrid, typeGrid, VoxelMesh.RESOLUTION, 4);
                     }
                 }
             }
