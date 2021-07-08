@@ -17,6 +17,13 @@ public class MeshBuilder : MonoBehaviour
     ComputeBuffer faceBuffer; 
     ComputeBuffer triCountBuffer;
 
+    static int[] faceIndices = new int[] {  0, 4, 3, 4, 7, 3,
+                                            3, 7, 2, 7, 6, 2,
+                                            1, 5, 0, 5, 4, 0, 
+                                            2, 6, 1, 6, 5, 1,
+                                            4, 6, 7, 4, 5, 6,
+                                            0, 2, 1, 0, 3, 2};
+
     Batch batch;
 
     public void Awake() {
@@ -201,6 +208,39 @@ public class MeshBuilder : MonoBehaviour
         List<Mesh> meshes = new List<Mesh>();
         meshes.Add(mesh);
         return meshes;
+    }
+
+    public Mesh GenerateSimpleMesh(int[,,] octrees) {
+        List<Vector3> vertices = new List<Vector3>();
+        List<int> triangles = new List<int>();
+        
+        for (int i = 0; i < 125; i++) {
+            int x = i % 5;
+            int y = i % 25 / 5;
+            int z = i / 25;
+
+            if (octrees[x, y, z] != 0) {
+                // make cube
+                int start = vertices.Count;
+                vertices.Add(new Vector3(x * 32, y * 32, z * 32));
+                vertices.Add(new Vector3(x * 32 + 32, y * 32, z * 32));
+                vertices.Add(new Vector3(x * 32 + 32, y * 32 + 32, z * 32));
+                vertices.Add(new Vector3(x * 32, y * 32 + 32, z * 32));
+                vertices.Add(new Vector3(x * 32, y * 32, z * 32 + 32));
+                vertices.Add(new Vector3(x * 32 + 32, y * 32, z * 32 + 32));
+                vertices.Add(new Vector3(x * 32 + 32, y * 32 + 32, z * 32 + 32));
+                vertices.Add(new Vector3(x * 32, y * 32 + 32, z * 32 + 32));
+
+                for (int j = 0; j < faceIndices.Length; j++) {
+                    triangles.Add(faceIndices[j] + start);
+                }
+            }
+        }
+
+        Mesh mesh = new Mesh();
+        mesh.vertices = vertices.ToArray();
+        mesh.triangles = triangles.ToArray();
+        return mesh;
     }
 
     Vector2 BlockTypeToUV(int blockType) {

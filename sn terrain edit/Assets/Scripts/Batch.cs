@@ -38,7 +38,8 @@ public class Batch : MonoBehaviour
         BatchReadWriter.readWriter.ReadBatch(this);
     }
 
-    public void ConstructBatch() {
+    public void OnFinishRead(Octree[,,] octrees) {
+        rootNodes = octrees;
         if (rootNodes != null) {
             _voxelMesh.Init(rootNodes, lod);
         }
@@ -47,7 +48,7 @@ public class Batch : MonoBehaviour
 
     public void Write() {
         _voxelMesh.UpdateOctreeDensity();
-        BatchReadWriter.readWriter.WriteBatch(batchIndex, rootNodes);
+        BatchReadWriter.readWriter.WriteOptoctrees(batchIndex, rootNodes);
     }
 
     public OctNodeData GetNode(Vector3 pos) {
@@ -64,9 +65,5 @@ public class Batch : MonoBehaviour
             Debug.LogError($"Out of bounds density request! ({x}, {y}, {z})");
             return new OctNodeData(false);
         }
-    }
-
-    public void SetOctrees(Octree[,,] octrees) {
-        rootNodes = octrees;
     }
 }

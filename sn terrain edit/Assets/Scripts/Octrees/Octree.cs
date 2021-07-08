@@ -18,6 +18,11 @@ public class Octree {
             return node.position;
         }
     }
+    public byte Index {
+        get {
+            return (byte)((node.position.x / 32) + (node.position.y / 32) * 5 + (node.position.z / 32) * 25);
+        }
+    }
 
     public Octree(int x, int y, int z, float rootSize, Vector3 batchOrigin) {
 
@@ -39,8 +44,6 @@ public class Octree {
     }
 
     public void Write(OctNodeData[] data) {
-
-        int i = batchIndex.x * 25 + batchIndex.y * 5 + batchIndex.z;
         node.WriteData(data, 0);
     }
 
@@ -80,6 +83,10 @@ public class Octree {
         return node.data.type;
     }
 
+    public bool IdenticalTo(Octree other) {
+        return node.IdenticalTo(other.node);
+    }
+
 
     [System.Serializable]
     private class OctNode {
@@ -91,8 +98,6 @@ public class Octree {
         public float size;
         public OctNodeData data;
 
-        // communication fields
-        // downward
         public OctNode[] children;
 
         public OctNode(Vector3 position, float size) {
@@ -382,6 +387,22 @@ public class Octree {
             new Vector3(1, 1, 0),
             new Vector3(1, 1, 1)
         };
+
+        public bool IdenticalTo(OctNode other) {
+            // compare pos, size, type, density and children
+            bool childrenIdentical = true;
+            if (other.hasChildren != hasChildren) return false;
+            if (hasChildren) {
+                for (int b = 0; b < 8 && childrenIdentical; b++) {
+                    childrenIdentical &= children[b].IdenticalTo(other.children[b]);
+                }
+            }
+            return childrenIdentical &&
+            size == other.size && 
+            data.type == other.data.type && 
+            data.signedDist == other.data.signedDist &&
+            position == other.position;
+        }
     }
 }
 

@@ -14,7 +14,6 @@ public class RegionLoader : MonoBehaviour
     public bool doNextBatch = false;
 
     public Batch[] loadedBatches;
-    public VoxelMesh[] loadedMeshes;
 
     public event Action OnLoadFinish;
     public event Action OnRegionSaved;
@@ -26,9 +25,14 @@ public class RegionLoader : MonoBehaviour
     }
 
     public void LoadMap() {
+        // very laggy :(
         batchLod = 4;
         placeUsingCoords = true;
         LoadRegion(new Vector3Int(0, 18, 0), new Vector3Int(32, 19, 32));
+    }
+    public void LoadSimpleMap() {
+        placeUsingCoords = true;
+        StartCoroutine(SimpleMapLoadCoroutine());
     }
 
     public void LoadSingleBatch(Vector3Int batch) {
@@ -43,8 +47,8 @@ public class RegionLoader : MonoBehaviour
             UnloadRegion();
         }
 
-        this.start = start;
-        this.end = end;
+        this.start = new Vector3Int(Math.Min(start.x, end.x), Math.Min(start.y, end.y), Math.Min(start.z, end.z));
+        this.end = new Vector3Int(Math.Max(start.x, end.x), Math.Max(start.y, end.y), Math.Max(start.z, end.z));
 
         doNextBatch = true;
         
@@ -57,7 +61,7 @@ public class RegionLoader : MonoBehaviour
         for (int y = start.y; y <= end.y; y++) {
             for (int z = start.z; z <= end.z; z++) {
                 for (int x = start.x; x <= end.x; x++) {
-                    Destroy(GameObject.Find($"batch-{x}-{y}-{z}"));
+                    Destroy(loadedBatches[GetLabel(x, y, z)].gameObject);
                 }
             }
         }
@@ -120,6 +124,46 @@ public class RegionLoader : MonoBehaviour
         Camera.main.gameObject.SendMessage("OnRegionLoad");
     }
 
+    public IEnumerator SimpleMapLoadCoroutine() {
+
+        Vector3Int start = new Vector3Int(6, 18, 6);
+        Vector3Int end = new Vector3Int(16, 19, 16);
+        int startBatch = GetLabel(start);
+        int endBatch = GetLabel(end) + 1;
+
+        for (int y = start.y; y <= end.y; y++) {
+            for (int z = start.z; z <= end.z; z++) {
+                for (int x = start.x; x <= end.x; x++) {
+                    Vector3Int batchCoords = new Vector3Int(x, y, z);
+                    string batchname = string.Format($"batch {batchCoords.x}-{batchCoords.y}-{batchCoords.z}");
+
+                    SimpleBatch simple = new SimpleBatch();
+
+                    // wait for octree data
+                    yield return BatchReadWriter.readWriter.DoReadBatch(simple.OnFinishRead, batchCoords);
+
+                    // maybe dispose of simple?
+                    if (simple.Empty) {
+                        EditorUI.UpdateStatusBar($"Skipping {batchname}", loadPercent);
+                        continue;
+                    }
+
+                    // make mesh obj
+                    GameObject meshObj = new GameObject(batchname);
+                    meshObj.AddComponent<MeshFilter>().mesh = MeshBuilder.builder.GenerateSimpleMesh(simple.GetSimpleOctrees());
+                    meshObj.AddComponent<MeshRenderer>().material = Globals.GetBatchMat();
+                    meshObj.transform.SetParent(transform);
+                    meshObj.transform.position = batchCoords * 160;
+
+                    loadPercent = (float)GetLabel(batchCoords) / (endBatch - startBatch);
+                    EditorUI.UpdateStatusBar($"Loading {batchname}", loadPercent);
+                    yield return null;
+                }
+            }
+        }
+
+    }
+
     public void SaveRegion() {
         StartCoroutine(RegionSave());
     }
@@ -177,5 +221,34 @@ public class RegionLoader : MonoBehaviour
         }
 
         return null;
+    }
+}
+
+class SimpleBatch {
+    Octree[,,] octrees;
+
+    public bool Empty {
+        get {
+            return octrees == null;
+        } 
+    }
+
+    public void OnFinishRead(Octree[,,] _octrees) {
+        octrees = _octrees;
+    }
+
+    public int[,,] GetSimpleOctrees() {
+        int[,,] simpleOctrees = new int[5, 5, 5];
+        if (octrees != null) {
+            for (int z = 0; z < 5; z++) {
+                for (int y = 0; y < 5; y++) {
+                    for (int x = 0; x < 5; x++) {
+                        if (octrees[x, y, z] != null)
+                            simpleOctrees[x, y, z] = octrees[x, y, z].GetBlockType();
+                    }
+                }
+            }
+        }
+        return simpleOctrees;
     }
 }

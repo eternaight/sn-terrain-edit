@@ -5,7 +5,6 @@ using UnityEngine.UI;
 
 public class UILoadWindow : UIWindow
 {
-    const bool MAPLOAD = true;
     public void LoadBatch() {
 
         if (string.IsNullOrEmpty(Globals.instance.gamePath)) {
@@ -13,16 +12,15 @@ public class UILoadWindow : UIWindow
             return;
         }
 
-        if (MAPLOAD) {
-            RegionLoader.loader.LoadMap();
-            RegionLoader.loader.OnLoadFinish += EditorUI.DisableStatusBar;
-        } else {
-            InputField batchIndexInput = transform.GetChild(2).GetChild(1).GetComponent<InputField>();
-            string[] s = batchIndexInput.text.Split(' ');
+        // InputField rangeStartInput = transform.GetChild(2).GetChild(2).GetChild(0).GetComponent<InputField>();
+        // InputField rangeEndInput = transform.GetChild(2).GetChild(2).GetChild(2).GetComponent<InputField>();
 
-            Vector3Int index = new Vector3Int(int.Parse(s[0]), int.Parse(s[1]), int.Parse(s[2]));
-            RegionLoader.loader.LoadSingleBatch(index);
-            RegionLoader.loader.OnLoadFinish += EditorUI.DisableStatusBar;
-        }
+        // string[] s = rangeStartInput.text.Split(' ');
+        // Vector3Int start = new Vector3Int(int.Parse(s[0]), int.Parse(s[1]), int.Parse(s[2]));
+        // s = rangeEndInput.text.Split(' ');
+        // Vector3Int end = new Vector3Int(int.Parse(s[0]), int.Parse(s[1]), int.Parse(s[2]));
+
+        RegionLoader.loader.LoadSimpleMap();
+        RegionLoader.loader.OnLoadFinish += EditorUI.DisableStatusBar;
     }
 }
