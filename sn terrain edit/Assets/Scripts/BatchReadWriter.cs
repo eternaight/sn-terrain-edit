@@ -39,7 +39,6 @@ public class BatchReadWriter : MonoBehaviour
 
             BinaryReader reader = new BinaryReader(File.Open(Globals.instance.batchSourcePath + batchname, FileMode.Open));
             reader.ReadInt32();
-            yield return null;
             
             // assemble a data array
             int curr_pos = 0;
@@ -63,9 +62,9 @@ public class BatchReadWriter : MonoBehaviour
                 // record all nodes of this octree in an array
                 OctNodeData[] nodesOfThisOctree = new OctNodeData[nodeCount];
                 for (int i = 0; i < nodeCount; ++i) {
-                    int type = data[curr_pos + 2 + i * 4];
-                    int signedDist = data[curr_pos + 3 + i * 4];
-                    int childIndex = data[curr_pos + 5 + i * 4] * 256 + data[curr_pos + 4 + i * 4];
+                    byte type = data[curr_pos + 2 + i * 4];
+                    byte signedDist = data[curr_pos + 3 + i * 4];
+                    ushort childIndex = (ushort)(data[curr_pos + 5 + i * 4] * 256 + data[curr_pos + 4 + i * 4]);
 
                     nodesOfThisOctree[i] = (new OctNodeData((byte)type, (byte)signedDist, (ushort)childIndex));
                 }
@@ -89,7 +88,51 @@ public class BatchReadWriter : MonoBehaviour
         }
 
         busy = false;
+        yield return null;
     } 
+
+    public bool QuickReadBatch(Vector3Int batchIndex, out int[,,] octrees) {
+        string batchname = string.Format("\\compiled-batch-{0}-{1}-{2}.optoctrees", batchIndex.x, batchIndex.y, batchIndex.z);
+        busy = true;
+
+        octrees = new int[5, 5, 5];
+
+        if (File.Exists(Globals.instance.batchSourcePath + batchname)) {
+
+            BinaryReader reader = new BinaryReader(File.Open(Globals.instance.batchSourcePath + batchname, FileMode.Open));
+            reader.ReadInt32();
+            
+            // assemble a data array
+            int curr_pos = 0;
+            int countOctrees = 0;
+            
+            long streamLength = reader.BaseStream.Length - 4;
+            while (curr_pos < streamLength) {
+                
+                int x = countOctrees / 25;
+                int y = countOctrees % 25 / 5;
+                int z = countOctrees % 5;
+
+                int nodeCount = reader.ReadByte() + reader.ReadByte() * 256;
+
+                octrees[z, y, x] = reader.ReadByte();
+
+                byte[] buffer = new byte[3 + (nodeCount - 1) * 4];
+                reader.Read(buffer, 0, 3 + (nodeCount - 1) * 4);
+
+                curr_pos += (nodeCount * 4) + 2;
+                countOctrees++; 
+
+                curr_pos++;
+            }
+
+            reader.Close();
+            busy = false;
+            return true;
+        } 
+        busy = false;
+        return false;
+    }
 
     public void GenerateMaterialGallery(Batch batch) {
 

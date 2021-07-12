@@ -28,7 +28,7 @@ public class RegionLoader : MonoBehaviour
         // very laggy :(
         batchLod = 4;
         placeUsingCoords = true;
-        LoadRegion(new Vector3Int(0, 18, 0), new Vector3Int(32, 19, 32));
+        LoadRegion(new Vector3Int(11, 18, 11), new Vector3Int(13, 19, 13));
     }
     public void LoadSimpleMap() {
         placeUsingCoords = true;
@@ -126,42 +126,40 @@ public class RegionLoader : MonoBehaviour
 
     public IEnumerator SimpleMapLoadCoroutine() {
 
-        Vector3Int start = new Vector3Int(6, 18, 6);
-        Vector3Int end = new Vector3Int(16, 19, 16);
-        int startBatch = GetLabel(start);
-        int endBatch = GetLabel(end) + 1;
+        Vector3Int start = new Vector3Int(0, 0, 0);
+        Vector3Int end = new Vector3Int(32, 20, 32);
+        Vector3Int res = end - start;
+
+        int lastFace = 0;
+        Vector3[] vertices = new Vector3[65536];
+        Vector3[] normals = new Vector3[65536];
+        int[] faceIndices = new int[65536];
+        Vector2[] uvs = new Vector2[65536];
+
+        Globals.BakeSimpleMapMaterial();
 
         for (int y = start.y; y <= end.y; y++) {
             for (int z = start.z; z <= end.z; z++) {
                 for (int x = start.x; x <= end.x; x++) {
-                    Vector3Int batchCoords = new Vector3Int(x, y, z);
-                    string batchname = string.Format($"batch {batchCoords.x}-{batchCoords.y}-{batchCoords.z}");
+                    Vector3Int bIndex = new Vector3Int(x, y, z);
+                    int[,,] octrees;
 
-                    SimpleBatch simple = new SimpleBatch();
-
-                    // wait for octree data
-                    yield return BatchReadWriter.readWriter.DoReadBatch(simple.OnFinishRead, batchCoords);
-
-                    // maybe dispose of simple?
-                    if (simple.Empty) {
-                        EditorUI.UpdateStatusBar($"Skipping {batchname}", loadPercent);
-                        continue;
+                    if (BatchReadWriter.readWriter.QuickReadBatch(bIndex, out octrees)) {
+                        MeshBuilder.builder.ProcessSimpleBatch(vertices, faceIndices, normals, uvs, ref lastFace, octrees, bIndex * 5);
                     }
-
-                    // make mesh obj
-                    GameObject meshObj = new GameObject(batchname);
-                    meshObj.AddComponent<MeshFilter>().mesh = MeshBuilder.builder.GenerateSimpleMesh(simple.GetSimpleOctrees());
-                    meshObj.AddComponent<MeshRenderer>().material = Globals.GetBatchMat();
-                    meshObj.transform.SetParent(transform);
-                    meshObj.transform.position = batchCoords * 160;
-
-                    loadPercent = (float)GetLabel(batchCoords) / (endBatch - startBatch);
-                    EditorUI.UpdateStatusBar($"Loading {batchname}", loadPercent);
-                    yield return null;
                 }
             }
+            
+            //loadPercent = (float)(z - start.z + (y - start.y) * res.z) / (res.z + res.y * res.z);
+            loadPercent = (float)(y - start.y) / res.y;
+            EditorUI.UpdateStatusBar($"Loading simple map...", loadPercent);
+            yield return null;
         }
 
+        MeshBuilder.builder.WrapMeshIntoGameObject(vertices, faceIndices, normals, uvs);
+
+        OnLoadFinish?.Invoke();
+        Camera.main.gameObject.SendMessage("OnRegionLoad");
     }
 
     public void SaveRegion() {
@@ -240,6 +238,7 @@ class SimpleBatch {
     public int[,,] GetSimpleOctrees() {
         int[,,] simpleOctrees = new int[5, 5, 5];
         if (octrees != null) {
+            // Inverse octree order because weird
             for (int z = 0; z < 5; z++) {
                 for (int y = 0; y < 5; y++) {
                     for (int x = 0; x < 5; x++) {

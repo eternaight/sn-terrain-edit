@@ -210,37 +210,83 @@ public class MeshBuilder : MonoBehaviour
         return meshes;
     }
 
-    public Mesh GenerateSimpleMesh(int[,,] octrees) {
-        List<Vector3> vertices = new List<Vector3>();
-        List<int> triangles = new List<int>();
-        
-        for (int i = 0; i < 125; i++) {
-            int x = i % 5;
-            int y = i % 25 / 5;
-            int z = i / 25;
+    public void ProcessSimpleBatch(Vector3[] vertices, int[] triangles, Vector3[] normals, Vector2[] uvs, ref int lastFace, int[,,] octrees, Vector3 offset) {
+        for (int z = 0; z < 5; z++) {
+            for (int y = 0; y < 5; y++) {
+                for (int x = 0; x < 5; x++) {
 
-            if (octrees[x, y, z] != 0) {
-                // make cube
-                int start = vertices.Count;
-                vertices.Add(new Vector3(x * 32, y * 32, z * 32));
-                vertices.Add(new Vector3(x * 32 + 32, y * 32, z * 32));
-                vertices.Add(new Vector3(x * 32 + 32, y * 32 + 32, z * 32));
-                vertices.Add(new Vector3(x * 32, y * 32 + 32, z * 32));
-                vertices.Add(new Vector3(x * 32, y * 32, z * 32 + 32));
-                vertices.Add(new Vector3(x * 32 + 32, y * 32, z * 32 + 32));
-                vertices.Add(new Vector3(x * 32 + 32, y * 32 + 32, z * 32 + 32));
-                vertices.Add(new Vector3(x * 32, y * 32 + 32, z * 32 + 32));
-
-                for (int j = 0; j < faceIndices.Length; j++) {
-                    triangles.Add(faceIndices[j] + start);
+                    if (octrees[z, y, x] != 0) {
+                        Vector3 o = new Vector3(x, y, z) + offset;
+                        if (x == 4 || octrees[z, y, x + 1] == 0) {
+                            AddFaceToMesh(vertices, triangles, normals, uvs, ref lastFace, Vector3.forward, Vector3.up, o + Vector3.right);
+                        }
+                        if (x == 0 || octrees[z, y, x - 1] == 0) {
+                            AddFaceToMesh(vertices, triangles, normals, uvs, ref lastFace, Vector3.up, Vector3.forward, o);
+                        }
+                        if (y == 4 || octrees[z, y + 1, x] == 0) {
+                            AddFaceToMesh(vertices, triangles, normals, uvs, ref lastFace, Vector3.right, Vector3.forward, o + Vector3.up);
+                        }
+                        if (y == 0 || octrees[z, y - 1, x] == 0) {
+                            AddFaceToMesh(vertices, triangles, normals, uvs, ref lastFace, Vector3.forward, Vector3.right, o);
+                        }
+                        if (z == 4 || octrees[z + 1, y, x] == 0) {
+                            AddFaceToMesh(vertices, triangles, normals, uvs, ref lastFace, Vector3.up, Vector3.right, o + Vector3.forward);
+                        }
+                        if (z == 0 || octrees[z - 1, y, x] == 0) {
+                            AddFaceToMesh(vertices, triangles, normals, uvs, ref lastFace, Vector3.right, Vector3.up, o);
+                        }
+                    }
                 }
             }
         }
+    }
 
+    void AddFaceToMesh(Vector3[] vertices, int[] triangles, Vector3[] normals, Vector2[] uvs, ref int start, Vector3 a, Vector3 b, Vector3 o) {
+
+        vertices[start] = o + b;
+        vertices[start + 1] = o + a + b;
+        vertices[start + 2] = o + a;
+        vertices[start + 3] = o;
+
+        triangles[start] = start;
+        triangles[start + 1] = start + 1;
+        triangles[start + 2] = start + 2;
+        triangles[start + 3] = start + 3;
+
+        Vector3 n = Vector3.Cross(a, b);
+        normals[start] = n;
+        normals[start + 1] = n;
+        normals[start + 2] = n;
+        normals[start + 3] = n;
+
+        uvs[start] = new Vector2(vertices[start].x / 125f, vertices[start].z / 125f);
+        uvs[start + 1] = new Vector2(vertices[start + 1].x / 125f, vertices[start + 1].z / 125f);
+        uvs[start + 2] = new Vector2(vertices[start + 2].x / 125f, vertices[start + 2].z / 125f);
+        uvs[start + 3] = new Vector2(vertices[start + 3].x / 125f, vertices[start + 3].z / 125f);
+
+        start += 4;
+        if (start > 65532) {
+            WrapMeshIntoGameObject(vertices, triangles, normals, uvs);
+            start = 0;
+            Array.Clear(vertices, 0, 65536);
+            Array.Clear(triangles, 0, 65536);
+            Array.Clear(normals, 0, 65536);
+            Array.Clear(uvs, 0, 65536);
+        }
+    }
+
+    public void WrapMeshIntoGameObject(Vector3[] vertices, int[] indices, Vector3[] normals, Vector2[] uvs) {
+        
         Mesh mesh = new Mesh();
-        mesh.vertices = vertices.ToArray();
-        mesh.triangles = triangles.ToArray();
-        return mesh;
+        mesh.vertices = vertices;
+        mesh.normals = normals;
+        mesh.uv = uvs;
+        mesh.SetIndices(indices, MeshTopology.Quads, 0, false);
+        mesh.RecalculateNormals();
+
+        GameObject go = new GameObject("SimpleMapMesh");
+        go.AddComponent<MeshFilter>().mesh = mesh;
+        go.AddComponent<MeshRenderer>().material = Globals.GetSimpleMapMat();
     }
 
     Vector2 BlockTypeToUV(int blockType) {

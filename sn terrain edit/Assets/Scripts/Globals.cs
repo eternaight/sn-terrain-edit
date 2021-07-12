@@ -1,3 +1,4 @@
+using System.IO;
 using UnityEngine;
 public class Globals : MonoBehaviour {
 
@@ -8,6 +9,7 @@ public class Globals : MonoBehaviour {
     public Material batchMat;
     public Material batchCappedMat;
     public Material brushGizmoMat;
+    public Material simpleMapMat;
     public Texture2D colorMap;
     public Color[] brushColors;
     public string gamePath;
@@ -46,6 +48,21 @@ public class Globals : MonoBehaviour {
     public static Material GetBatchMat() {
         return instance.batchMat;
     }
+    public static void BakeSimpleMapMaterial() {
+        string filename = instance.gamePath + "\\Subnautica_Data\\StreamingAssets\\SNUnmanagedData\\Build18\\biomemap.png";
+
+        if (File.Exists(filename)) {
+            byte[] fileData = File.ReadAllBytes(filename);
+            Texture2D mapTexture = new Texture2D(2, 2);
+            if (ImageConversion.LoadImage(mapTexture, fileData, false)) {
+                instance.simpleMapMat.mainTexture = mapTexture;
+            }
+        }
+    }
+    public static Material GetSimpleMapMat() {
+        return instance.simpleMapMat;
+    }
+
     public static void SetGamePath(string path, bool save) {
         instance.gamePath = path;
         
