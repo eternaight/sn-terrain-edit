@@ -1,56 +1,60 @@
 ﻿using UnityEngine;
 using UnityEngine.UI;
 
-public class UIBrushWindow : UIWindow
-{
-    UIButtonSelect modeSelector;
+namespace ReefEditor.UI {
+    public class UIBrushWindow : UIWindow {
+        UIButtonSelect modeSelector;
 
-    public override void Start() {
-        UpdateBrushRadius();
-
-        modeSelector = transform.GetChild(1).GetChild(1).GetComponent<UIButtonSelect>();
-        modeSelector.OnValueChanged += UpdateBrushMode;
-    }
-    public void UpdateBrushRadius() {
-
-        float sliderValue = transform.GetChild(1).GetChild(3).GetChild(1).GetComponent<Slider>().value;
-        float transformed = Mathf.Sqrt(sliderValue);
-
-        Brush.SetBrushSize(sliderValue);
-        UpdateRadiusDisplay();
-    }
-    public void UpdateRadiusDisplay() {
-        string displayValue = System.Math.Round(Brush.brushSize, 1).ToString("0.0");
-        transform.GetChild(1).GetChild(3).GetChild(0).GetComponent<Text>().text = displayValue;
-    }
-
-    public void UpdateBrushBlocktype() {
-
-        string typeString = transform.GetChild(1).GetChild(5).GetComponent<InputField>().text;
-        
-        byte typeValue = 0;
-        if (byte.TryParse(typeString, out typeValue)) {
-            Brush.SetBrushMaterial(typeValue);
+        public void Awake() {
+            Brush.SetBrushSize(0);
+            Brush.SetBrushMode(0);
+            Brush.SetBrushMaterial(11);
+            Brush.OnParametersChanged += RedrawValues;
         }
-        UpdateBlocktypeDisplay();
-    }
-    public void UpdateBlocktypeDisplay() {
-        transform.GetChild(1).GetChild(5).GetComponent<InputField>().text = Brush.selectedType.ToString();
-    }
+        public override void Start() {
+            modeSelector = transform.GetChild(1).GetChild(1).GetComponent<UIButtonSelect>();
+            modeSelector.OnSelectionChanged += SetNewBrushMode;
+        }
 
-    public void UpdateBrushMode() {
-        Brush.mode = (BrushMode)(modeSelector.selection);
-    }
+        public override void EnableWindow()
+        {
+            base.EnableWindow();
+            RedrawValues();
+        }
 
-    // overrides
-    public override void EnableWindow()
-    {
-        base.EnableWindow();
-        UpdateRadiusDisplay();
-        UpdateBlocktypeDisplay();
-    }
-    public override void DisableWindow()
-    {
-        base.DisableWindow();
+        // For receiving commands from UI
+        public void SetNewBrushSize() {
+
+            float sliderValue = transform.GetChild(1).GetChild(3).GetChild(1).GetComponent<Slider>().value;
+            float transformed = Mathf.Sqrt(sliderValue);
+
+            Brush.SetBrushSize(sliderValue);
+        }
+        public void SetNewBrushMode() {
+            Brush.SetBrushMode(modeSelector.selection);
+        }
+        public void SetNewBlocktype() {
+
+            string typeString = transform.GetChild(1).GetChild(5).GetComponent<InputField>().text;
+            
+            byte typeValue = 0;
+            if (byte.TryParse(typeString, out typeValue)) {
+                Brush.SetBrushMaterial(typeValue);
+            }
+        }
+
+
+        // For redrawing UI
+        public void RedrawValues() {
+            RedrawBlocktypeDisplay();
+            RedrawRadiusDisplay();
+        }
+        public void RedrawRadiusDisplay() {
+            string displayValue = System.Math.Round(Brush.brushSize, 1).ToString("0.0");
+            transform.GetChild(1).GetChild(3).GetChild(0).GetComponent<Text>().text = displayValue;
+        }
+        public void RedrawBlocktypeDisplay() {
+            transform.GetChild(1).GetChild(5).GetComponent<InputField>().text = Brush.selectedType.ToString();
+        }
     }
 }

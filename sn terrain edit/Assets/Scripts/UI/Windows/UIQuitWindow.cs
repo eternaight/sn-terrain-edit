@@ -1,11 +1,9 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
-using UnityEngine.UI;
+﻿using UnityEngine;
 
-public class UIQuitWindow : UIWindow
-{
-    public void CloseApp() {
-        Application.Quit();
+namespace ReefEditor.UI {
+    public class UIQuitWindow : UIWindow {
+        public void CloseApp() {
+            Application.Quit();
+        }
     }
 }

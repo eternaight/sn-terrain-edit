@@ -1,127 +1,132 @@
 using System.Collections;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.UI;
+using ReefEditor.ContentLoading;
 
-public class UIMaterialsWindow : UIWindow
-{
-    GameObject matIconPrefab;
-    bool materialsLoaded = false;
-    List<UIBlocktypeIconDisplay> icons;
+namespace ReefEditor.UI {
+    public class UIMaterialsWindow : UIWindow {
+        GameObject matIconPrefab;
+        bool materialsLoaded = false;
+        List<UIBlocktypeIconDisplay> icons;
 
-    public override void EnableWindow() {
-        base.EnableWindow();
-        if (matIconPrefab == null)
-            matIconPrefab = Resources.Load<GameObject>("UI Material Icon");
-    }
-
-    public void LoadMaterials() {
-        transform.GetChild(1).gameObject.SetActive(false);
-        transform.GetChild(2).gameObject.SetActive(true);
-
-        if (!materialsLoaded) {
-            StartCoroutine(DisplayMaterialIcons());
+        public override void EnableWindow() {
+            base.EnableWindow();
+            if (matIconPrefab == null)
+                matIconPrefab = Resources.Load<GameObject>("UI Material Icon");
         }
-    }
 
-    public void UpdateIconVisibility() {
-        foreach (UIBlocktypeIconDisplay icon in icons) {
-            bool visible = IsIconVisible(icon.gameObject.transform as RectTransform);
-            icon.UpdateVisibility(visible);
-        }
-    }
+        public void LoadMaterials() {
+            transform.GetChild(1).gameObject.SetActive(false);
+            transform.GetChild(2).gameObject.SetActive(true);
 
-    void ResizeContent() {
-        (transform.GetChild(2).GetChild(0).GetChild(0) as RectTransform).offsetMin = new Vector2(0, -225 * Mathf.Ceil(transform.GetChild(2).GetChild(0).GetChild(0).GetChild(0).childCount / 2f));
-    }
-
-    IEnumerator DisplayMaterialIcons() {
-        yield return null;
-        yield return StartCoroutine(SNContentLoader.instance.LoadContent());
-        materialsLoaded = true;
-        icons = new List<UIBlocktypeIconDisplay>();
-
-        foreach(BlocktypeMaterial mat in SNContentLoader.instance.blocktypesData) {
-            if (mat != null && mat.ExistsInGame) {
-                GameObject newIconGameObj = Instantiate(matIconPrefab, transform.GetChild(2).GetChild(0).GetChild(0).GetChild(0));
-                UIBlocktypeIconDisplay newicon = new UIBlocktypeIconDisplay(newIconGameObj, mat);
-                icons.Add(newicon);
+            if (!materialsLoaded) {
+                StartCoroutine(DisplayMaterialIcons());
             }
         }
-        ResizeContent();
-        UpdateIconVisibility();
-    }
 
-    bool IsIconVisible(RectTransform rectTf) {
-        RectTransform scrollViewTf = transform.GetChild(2).GetChild(0) as RectTransform;
-        return rectTf.position.y > 0 & rectTf.position.y < 1080;
-    } 
-
-    class UIBlocktypeIconDisplay {
-        public GameObject gameObject;
-        BlocktypeMaterial mat;
-        bool isVisible = false;
-
-        public UIBlocktypeIconDisplay(GameObject instance, BlocktypeMaterial mat) {
-            this.gameObject = instance;
-            this.mat = mat;
-
-            string materialName = mat.trueName;
-            if (materialName.Contains("deco")) {
-                materialName = string.Concat(materialName.Split(' ')[0], "-deco");
+        public void UpdateIconVisibility() {
+            foreach (UIBlocktypeIconDisplay icon in icons) {
+                bool visible = IsIconVisible(icon.gameObject.transform as RectTransform);
+                icon.UpdateVisibility(visible);
             }
+        }
 
-            string title = $"{mat.blocktype.ToString()}) {materialName}";
-            gameObject.GetComponentInChildren<Text>().text = title;
+        void ResizeContent() {
+            (transform.GetChild(2).GetChild(0).GetChild(0) as RectTransform).offsetMin = new Vector2(0, -225 * Mathf.Ceil(transform.GetChild(2).GetChild(0).GetChild(0).GetChild(0).childCount / 2f));
+        }
 
-            instance.GetComponent<Button>().onClick.AddListener(OnMaterialSelected);
-        }    
+        IEnumerator DisplayMaterialIcons() {
 
-        public void UpdateVisibility(bool newVisible) {
+            // TODO: Add separate notifs for loading materials / loading textures / mounting textures //
+            EditorUI.UpdateStatusBar("Loading SN materials", 0);
+            yield return StartCoroutine(SNContentLoader.instance.LoadContent());
+            EditorUI.DisableStatusBar();
 
-            bool changed = newVisible != this.isVisible;
-            if (!changed) return;
-            this.isVisible = newVisible;
+            materialsLoaded = true;
+            icons = new List<UIBlocktypeIconDisplay>();
 
-            if (isVisible) {
-                if (mat.MainTexture != null) {
-                    Texture2D tex1 = mat.MainTexture;
-
-                    Color[] colors = tex1.GetPixels();
-                    for (int i = 0; i < colors.Length; i++) {
-                        colors[i].a = 1;
-                    }
-                    Texture2D texNoAlpha = new Texture2D(tex1.width, tex1.height);
-                    texNoAlpha.SetPixels(colors);
-                    texNoAlpha.Apply();
-
-                    Sprite sprite = Sprite.Create(texNoAlpha, new Rect(0.0f, 0.0f, tex1.width, tex1.height), new Vector2(0.5f, 0.5f), tex1.width);
-                    gameObject.GetComponent<Image>().sprite = sprite;
+            foreach(BlocktypeMaterial mat in SNContentLoader.instance.blocktypesData) {
+                if (mat != null && mat.ExistsInGame) {
+                    GameObject newIconGameObj = Instantiate(matIconPrefab, transform.GetChild(2).GetChild(0).GetChild(0).GetChild(0));
+                    UIBlocktypeIconDisplay newicon = new UIBlocktypeIconDisplay(newIconGameObj, mat);
+                    icons.Add(newicon);
                 }
-                if (mat.SideTexture != null) {
-                    Texture2D tex2 = mat.SideTexture;
+            }
+            ResizeContent();
+            UpdateIconVisibility();
+        }
 
-                    Color[] colors = tex2.GetPixels();
-                    for (int i = 0; i < colors.Length; i++) {
-                        colors[i].a = 1;
+        bool IsIconVisible(RectTransform rectTf) {
+            RectTransform scrollViewTf = transform.GetChild(2).GetChild(0) as RectTransform;
+            return rectTf.position.y > 0 & rectTf.position.y < 1080;
+        } 
+
+        class UIBlocktypeIconDisplay {
+            public GameObject gameObject;
+            BlocktypeMaterial mat;
+            bool isVisible = false;
+
+            public UIBlocktypeIconDisplay(GameObject instance, BlocktypeMaterial mat) {
+                this.gameObject = instance;
+                this.mat = mat;
+
+                string materialName = mat.trueName;
+                if (materialName.Contains("deco")) {
+                    materialName = string.Concat(materialName.Split(' ')[0], "-deco");
+                }
+
+                string title = $"{mat.blocktype.ToString()}) {materialName}";
+                gameObject.GetComponentInChildren<Text>().text = title;
+
+                instance.GetComponent<Button>().onClick.AddListener(OnMaterialSelected);
+            }    
+
+            public void UpdateVisibility(bool newVisible) {
+
+                bool changed = newVisible != this.isVisible;
+                if (!changed) return;
+                this.isVisible = newVisible;
+
+                if (isVisible) {
+                    if (mat.MainTexture != null) {
+                        Texture2D tex1 = mat.MainTexture;
+
+                        Color[] colors = tex1.GetPixels();
+                        for (int i = 0; i < colors.Length; i++) {
+                            colors[i].a = 1;
+                        }
+                        Texture2D texNoAlpha = new Texture2D(tex1.width, tex1.height);
+                        texNoAlpha.SetPixels(colors);
+                        texNoAlpha.Apply();
+
+                        Sprite sprite = Sprite.Create(texNoAlpha, new Rect(0.0f, 0.0f, tex1.width, tex1.height), new Vector2(0.5f, 0.5f), tex1.width);
+                        gameObject.GetComponent<Image>().sprite = sprite;
                     }
-                    Texture2D tex2NoAlpha = new Texture2D(tex2.width, tex2.height);
-                    tex2NoAlpha.SetPixels(colors);
-                    tex2NoAlpha.Apply();
+                    if (mat.SideTexture != null) {
+                        Texture2D tex2 = mat.SideTexture;
 
-                    Sprite sprite = Sprite.Create(tex2NoAlpha, new Rect(0.0f, 0.0f, tex2.width, tex2.height), new Vector2(0.5f, 0.5f), tex2.width);
-                    gameObject.transform.GetChild(0).GetChild(0).GetComponent<Image>().sprite = sprite;
+                        Color[] colors = tex2.GetPixels();
+                        for (int i = 0; i < colors.Length; i++) {
+                            colors[i].a = 1;
+                        }
+                        Texture2D tex2NoAlpha = new Texture2D(tex2.width, tex2.height);
+                        tex2NoAlpha.SetPixels(colors);
+                        tex2NoAlpha.Apply();
+
+                        Sprite sprite = Sprite.Create(tex2NoAlpha, new Rect(0.0f, 0.0f, tex2.width, tex2.height), new Vector2(0.5f, 0.5f), tex2.width);
+                        gameObject.transform.GetChild(0).GetChild(0).GetComponent<Image>().sprite = sprite;
+                    } else {
+                        gameObject.transform.GetChild(0).gameObject.SetActive(false);
+                    }
                 } else {
-                    gameObject.transform.GetChild(0).gameObject.SetActive(false);
+                    gameObject.GetComponent<Image>().sprite = null;
                 }
-            } else {
-                gameObject.GetComponent<Image>().sprite = null;
             }
-        }
 
-        public void OnMaterialSelected() {
-            Brush.SetBrushMaterial((byte)mat.blocktype);
+            public void OnMaterialSelected() {
+                Brush.SetBrushMaterial((byte)mat.blocktype);
+            }
         }
     }
 }

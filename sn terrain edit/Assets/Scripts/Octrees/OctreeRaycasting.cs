@@ -1,9 +1,6 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 
-public static class OctreeRaycasting
-{
+public static class OctreeRaycasting {
     public static bool RayIntersectsBox(Ray ray, Vector3 boxStart, Vector3 boxEnd) {
         
         // Ray marching yeah why not

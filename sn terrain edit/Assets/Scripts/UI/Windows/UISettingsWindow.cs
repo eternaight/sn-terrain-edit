@@ -1,13 +1,15 @@
 ﻿using UnityEngine.UI;
 
-public class UISettingsWindow : UIWindow
-{
-    public void ApplySettings() {
-        Globals.SetGamePath(transform.GetComponentInChildren<InputField>().text, true);
-    }
-    public override void EnableWindow()
+namespace ReefEditor.UI {
+    public class UISettingsWindow : UIWindow
     {
-        transform.GetComponentInChildren<InputField>().text = Globals.instance.gamePath;
-        base.EnableWindow();
+        public void ApplySettings() {
+            Globals.SetGamePath(transform.GetComponentInChildren<InputField>().text, true);
+        }
+        public override void EnableWindow()
+        {
+            transform.GetComponentInChildren<InputField>().text = Globals.instance.gamePath;
+            base.EnableWindow();
+        }
     }
 }
