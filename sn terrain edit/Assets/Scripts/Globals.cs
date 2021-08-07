@@ -84,9 +84,9 @@ namespace ReefEditor {
             return x + y * dim.x + z * dim.x * dim.y;
         }
         
-        public static byte[] CubeToLineArray(byte[,,] array) {
+        public static T[] CubeToLineArray<T>(T[,,] array) {
             Vector3Int size = new Vector3Int(array.GetLength(0), array.GetLength(1), array.GetLength(2));
-            byte[] new_array = new byte[size.x * size.y * size.z];
+            T[] new_array = new T[size.x * size.y * size.z];
 
             for (int k = 0; k < size.z; ++k) {
                 for (int j = 0; j < size.y; ++j) {
@@ -98,8 +98,8 @@ namespace ReefEditor {
 
             return new_array;
         }
-        public static byte[,,] LineToCubeArray(byte[] array, Vector3Int size) {
-            byte[,,] new_array = new byte[size.x, size.y, size.z];
+        public static T[,,] LineToCubeArray<T>(T[] array, Vector3Int size) {
+            T[,,] new_array = new T[size.x, size.y, size.z];
 
             for (int k = 0; k < size.z; ++k) {
                 for (int j = 0; j < size.y; ++j) {

@@ -10,6 +10,7 @@ namespace ReefEditor {
         public static byte selectedType;
         public static BrushMode mode;
         public static event Action OnParametersChanged;
+        public int brushStrength;
 
         BrushStroke stroke;
         const float brushActionPeriod = 1.0f;
@@ -62,7 +63,7 @@ namespace ReefEditor {
                         } else {
                             if (stroke.ReadyForNextAction()) {
 
-                                if (stroke.strokeLength == 0) stroke.FirstStroke(hit.point, hit.normal, brushSize, actionMode);
+                                if (stroke.strokeLength == 0) stroke.FirstStroke(hit.point, hit.normal, brushSize, brushStrength, actionMode);
                                 else stroke.ContinueStroke(hit.point, actionMode);
 
                                 mesh.DensityAction_Sphere(stroke);
@@ -109,6 +110,7 @@ namespace ReefEditor {
         public struct BrushStroke {
             public Vector3 brushLocation;
             public float brushRadius;
+            int strength;
             public BrushMode brushMode;
             public Vector3 firstStrokePoint;
             public Vector3 firstStrokeNormal;
@@ -116,7 +118,7 @@ namespace ReefEditor {
             float lastBrushTime;
 
             // Stroke frequency increases with more strokes
-            public void FirstStroke(Vector3 _position, Vector3 _normal, float _radius, BrushMode _mode) {
+            public void FirstStroke(Vector3 _position, Vector3 _normal, float _radius, int _strength, BrushMode _mode) {
                 strokeLength = 1;
 
                 brushLocation = _position;
@@ -124,6 +126,7 @@ namespace ReefEditor {
                 firstStrokeNormal = _normal;
                 brushRadius = _radius;
                 brushMode = _mode;
+                strength = _strength;
                 
                 lastBrushTime = Time.time;
             }
@@ -143,6 +146,17 @@ namespace ReefEditor {
                 firstStrokeNormal = Vector3.zero;
                 
                 lastBrushTime = 0;
+            }
+
+            // smooth values
+            private static float SmoothStep(float t, float min = 0, float max = 1) {
+                t = Mathf.Clamp01((t - min) / (max - min));
+                return t * t * (3 - 2 * t);
+            }
+            public float GetWeight(Vector3 voxelPos) {
+                // float brushWeight = SmoothStep((brushLocation - voxelPos).magnitude, brushRadius * 0.7f, brushRadius);
+                float brushWeight = 1;
+                return brushWeight * strength;
             }
 
             public bool ReadyForNextAction() {

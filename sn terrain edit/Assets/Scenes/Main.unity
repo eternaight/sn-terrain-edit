@@ -4843,7 +4843,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
   m_AnchoredPosition: {x: 60, y: -20}
-  m_SizeDelta: {x: 120, y: 40}
+  m_SizeDelta: {x: 120, y: 42}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1040682890
 MonoBehaviour:
@@ -5543,7 +5543,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
   m_AnchoredPosition: {x: 236.66667, y: -20}
-  m_SizeDelta: {x: 120, y: 40}
+  m_SizeDelta: {x: 120, y: 42}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1191023624
 MonoBehaviour:
@@ -8008,6 +8008,7 @@ GameObject:
   - component: {fileID: 1700670802}
   - component: {fileID: 1700670803}
   - component: {fileID: 1700670801}
+  - component: {fileID: 1700670804}
   m_Layer: 0
   m_Name: Managers
   m_TagString: Untagged
@@ -8028,6 +8029,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   loadPercent: 0
+  aRegionIsLoaded: 0
   start: {x: 0, y: 0, z: 0}
   end: {x: 0, y: 0, z: 0}
   doNextBatch: 0
@@ -8110,6 +8112,18 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   busy: 0
+--- !u!114 &1700670804
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1700670797}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c9768e804305f60468439e9ae5598413, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &1707018376
 GameObject:
   m_ObjectHideFlags: 0
@@ -8564,7 +8578,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &1792356458
 RectTransform:
   m_ObjectHideFlags: 0

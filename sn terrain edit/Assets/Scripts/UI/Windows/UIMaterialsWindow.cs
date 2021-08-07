@@ -40,10 +40,10 @@ namespace ReefEditor.UI {
 
             // TODO: Add separate notifs for loading materials / loading textures / mounting textures //
             EditorUI.UpdateStatusBar("Loading SN materials", 0);
+            materialsLoaded = true;
             yield return StartCoroutine(SNContentLoader.instance.LoadContent());
             EditorUI.DisableStatusBar();
 
-            materialsLoaded = true;
             icons = new List<UIBlocktypeIconDisplay>();
 
             foreach(BlocktypeMaterial mat in SNContentLoader.instance.blocktypesData) {

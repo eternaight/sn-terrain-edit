@@ -7,6 +7,7 @@ namespace ReefEditor {
     public class RegionLoader : MonoBehaviour {
         public static RegionLoader loader;
         public float loadPercent; 
+        public bool aRegionIsLoaded = false;
 
         public const int octreeSize = 32;
         public Vector3Int start;
@@ -43,9 +44,10 @@ namespace ReefEditor {
 
         public void LoadRegion(Vector3Int start, Vector3Int end) {
             
-            if (loadPercent != 0) {
+            if (aRegionIsLoaded) {
                 UnloadRegion();
             }
+            aRegionIsLoaded = true;
 
             this.start = new Vector3Int(Math.Min(start.x, end.x), Math.Min(start.y, end.y), Math.Min(start.z, end.z));
             this.end = new Vector3Int(Math.Max(start.x, end.x), Math.Max(start.y, end.y), Math.Max(start.z, end.z));
@@ -53,7 +55,7 @@ namespace ReefEditor {
             doNextBatch = true;
             
             loadPercent = 0;
-            StartCoroutine(RegionLoad());
+            StartCoroutine(RegionLoadCoroutine());
         }
 
         void UnloadRegion() {
@@ -65,32 +67,32 @@ namespace ReefEditor {
                     }
                 }
             }
+            aRegionIsLoaded = false;
         }
 
-        void CreateBatch(Vector3Int coords, bool queueNextBatch) {
+        Batch CreateBatchObject(Vector3Int coords) {
 
             GameObject batchObj = new GameObject($"batch-{coords.x}-{coords.y}-{coords.z}");
-            Batch newBatch = batchObj.AddComponent<Batch>();
-            loadedBatches[GetLabel(coords)] = newBatch;
-            newBatch.OnBatchConstructed += PushQueue;
-
-            newBatch.batchIndex = coords;
 
             if (placeUsingCoords) {
                 batchObj.transform.position = coords * 160;
             }
-
+            
+            Batch newBatch = batchObj.AddComponent<Batch>();
+            newBatch.OnBatchConstructed += PushQueue;
+            newBatch.batchIndex = coords;
             newBatch.Setup(batchLod);
+
+            return newBatch;
         }
 
         void PushQueue() {
             doNextBatch = true;
         }
 
-        IEnumerator RegionLoad() {
+        IEnumerator RegionLoadCoroutine() {
             
-            int startBatch = GetLabel(start);
-            int endBatch = GetLabel(end) + 1;
+            int endLabel = GetLabel(end);
 
             Vector3Int regionSize = end - start + Vector3Int.one;
             int totalBatches = regionSize.x * regionSize.y * regionSize.z;
@@ -102,15 +104,15 @@ namespace ReefEditor {
                     for (int x = start.x; x <= end.x; x++) {
                         
                         Vector3Int batchCoords = new Vector3Int(x, y, z);
+
                         string batchname = string.Format("\\compiled-batch-{0}-{1}-{2}.optoctrees", batchCoords.x, batchCoords.y, batchCoords.z);
 
-                        Vector3Int localIndex = (batchCoords - start);
-                        int batchNow = GetLabel(batchCoords);
-
                         doNextBatch = false;
-                        CreateBatch(batchCoords, true);
-
-                        loadPercent = (float)GetLabel(batchCoords) / (endBatch - startBatch);
+                        Batch batchComponent = CreateBatchObject(batchCoords);
+                        
+                        int label = GetLabel(batchCoords);
+                        loadedBatches[label] = batchComponent;
+                        loadPercent = (float)label / endLabel;
 
                         while(!doNextBatch) {
                             yield return null;
@@ -185,14 +187,16 @@ namespace ReefEditor {
             yield return null;
         }
 
-        public byte GetLabel(Vector3Int batchIndex) {
-            Vector3Int pos = batchIndex - start;
-            return GetLabel(pos.x, pos.y, pos.z);
+        public int GetLabel(Vector3Int batchIndex) {
+            return GetLabel(batchIndex.x, batchIndex.y, batchIndex.z);
         }
-        public byte GetLabel(int x, int y, int z) {
-
+        public int GetLabel(int x, int y, int z) {
+            int localX = x - start.x;
+            int localY = y - start.y;
+            int localZ = z - start.z;
             Vector3Int regionSize = end - start + Vector3Int.one;
-            return (byte)(y * regionSize.x * regionSize.z + z * regionSize.x + x);
+
+            return localY * regionSize.x * regionSize.z + localZ * regionSize.x + localX;
         }
         public Batch GetBatchFromLabel(int label) {
             Vector3Int regionSize = end - start + Vector3Int.one;

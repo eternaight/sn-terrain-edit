@@ -242,13 +242,8 @@ namespace ReefEditor.Octrees {
                     for (int k = start.z; k < start.z + thisCubeSize; ++k) {
                         for (int j = start.y; j < start.y + thisCubeSize; ++j) {
                             for (int i = start.x; i < start.x + thisCubeSize; ++i) {
-                                try {
                                 typeGrid[Globals.LinearIndex(i, j, k, VoxelMesh.RESOLUTION)] = data.type;
                                 densityGrid[Globals.LinearIndex(i, j, k, VoxelMesh.RESOLUTION)] = data.signedDist;
-                                } catch (Exception e) {
-                                    Debug.Log(i + " " + j + " " + k);
-                                    throw e;
-                                }
                             }
                         }
                     }
@@ -433,12 +428,6 @@ namespace ReefEditor.Octrees {
                 return (signedDist - 126) / 126f;
             }
             return -1f;
-        }
-        public void SetDensity(float val) {
-            if (val == 1 || val == -1) {
-                signedDist = 0;
-            }
-            signedDist = (byte)(val * 126 + 126);
         }
         public static float DecodeDensity(byte densityByte) {
             return (densityByte - 126) / 126f;

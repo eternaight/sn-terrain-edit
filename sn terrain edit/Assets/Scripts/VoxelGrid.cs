@@ -108,10 +108,10 @@ namespace ReefEditor.VoxelTech {
         public void ApplyGridAction(int x, int y, int z, Vector3 gridOrigin, Brush.BrushStroke brushStroke) {
             switch (brushStroke.brushMode) {
                 case BrushMode.Add:
-                    DensityAction_Add(x, y, z, gridOrigin, brushStroke);
+                    SmoothAdd(x, y, z, gridOrigin, brushStroke);
                     break;
                 case BrushMode.Remove:
-                    DensityAction_Remove(x, y, z, gridOrigin, brushStroke);
+                    SmoothAdd(x, y, z, gridOrigin, brushStroke, true);
                     break;
                 case BrushMode.Paint:
                     DensityAction_Paint(x, y, z, gridOrigin, brushStroke);
@@ -126,6 +126,28 @@ namespace ReefEditor.VoxelTech {
                     break;
             }
         }
+        void VoxelAdd(int x, int y, int z, int increment, byte newSolidVoxelType) {
+            // encode density into addition-friendly format
+            int distanceValue = densityGrid[x, y, z];
+            if (densityGrid[x, y, z] == 0) {
+                distanceValue = typeGrid[x, y, z] == 0 ? 0 : 252;
+            }
+
+            // run with it
+            bool solidChanged = (distanceValue >= 126) != (distanceValue + increment >= 126);
+            distanceValue += increment;
+            
+            // decode density back into normal storage format
+            densityGrid[x, y, z] = (byte)Mathf.Clamp(distanceValue, 0, 252);
+            if (solidChanged) {
+                if (densityGrid[x, y, z] >= 126) {
+                    typeGrid[x, y, z] = newSolidVoxelType;
+                } else {
+                    typeGrid[x, y, z] = 0;
+                }
+            }
+        }
+
         public static float SampleDensity_Sphere(Vector3 sample, Vector3 origin, float radius) {
             return radius - (sample - origin).magnitude;
         }
@@ -134,52 +156,17 @@ namespace ReefEditor.VoxelTech {
             return -(sample.x * normal.x + sample.y * normal.y + sample.z * normal.z + d);
         }
 
-        void DensityAction_Add(int x, int y, int z, Vector3 gridOrigin, Brush.BrushStroke stroke) {
+        void SmoothAdd(int x, int y, int z, Vector3 gridOrigin, Brush.BrushStroke stroke, bool remove = false) {
 
             float functionDensity = SampleDensity_Sphere(new Vector3(x, y, z) + gridOrigin, stroke.brushLocation, stroke.brushRadius);
             float clampedFunctionDensity = Mathf.Clamp(functionDensity, -1, 1);
             byte encodedDensity = OctNodeData.EncodeDensity(clampedFunctionDensity);
 
-            byte compareDist = densityGrid[x, y, z];
-            // if this is a solid 'far' node, no need to add to it
-            if (densityGrid[x, y, z] == 0 && typeGrid[x, y, z] != 0) compareDist = byte.MaxValue;
-
-            if (encodedDensity > compareDist) {
-                if (functionDensity != clampedFunctionDensity) {
-                    densityGrid[x, y, z] = 0;
-                } else {
-                    densityGrid[x, y, z] = encodedDensity;
-                }
-
-                if (clampedFunctionDensity > 0) {
-                    typeGrid[x, y, z] = Brush.selectedType;
-                } else {
-                    typeGrid[x, y, z] = 0;
-                }
-            }
-        }
-        void DensityAction_Remove(int x, int y, int z, Vector3 gridOrigin, Brush.BrushStroke stroke) {
-
-            // Cut into solid voxels, change type to 0 if voxel is no longer solid
-
-            float functionDensity = -SampleDensity_Sphere(new Vector3(x, y, z) + gridOrigin, stroke.brushLocation, stroke.brushRadius);
-            float clampedFunctionDensity = Mathf.Clamp(functionDensity, -1, 1);
-            byte encodedDensity = OctNodeData.EncodeDensity(clampedFunctionDensity);
-
-            byte compareDist = densityGrid[x, y, z];
-            // if this is a solid 'far' node, totally need to add to it
-            if (densityGrid[x, y, z] == 0 && typeGrid[x, y, z] != 0) compareDist = byte.MaxValue;
-
-            if (encodedDensity < compareDist) {
-                if (functionDensity != clampedFunctionDensity) {
-                    densityGrid[x, y, z] = 0;
-                } else {
-                    densityGrid[x, y, z] = encodedDensity;
-                }
+            if (clampedFunctionDensity > 0) {
                 
-                if (clampedFunctionDensity < 0) {
-                    typeGrid[x, y, z] = 0;
-                }
+                float add = clampedFunctionDensity * stroke.GetWeight(new Vector3(x, y, z) + gridOrigin);
+                if (remove) add *= -1;
+                VoxelAdd(x, y, z, (int)add, (byte)Brush.selectedType);
             }
         }
         void DensityAction_Paint(int x, int y, int z, Vector3 gridOrigin, Brush.BrushStroke stroke) {
@@ -189,7 +176,7 @@ namespace ReefEditor.VoxelTech {
             float functionDensity = SampleDensity_Sphere(new Vector3(x, y, z) + gridOrigin, stroke.brushLocation, stroke.brushRadius);
             float clampedFunctionDensity = Mathf.Clamp(functionDensity, -1, 1);
 
-            if (functionDensity > 0 && OctNodeData.DecodeDensity(densityGrid[x, y, z]) > 0) {
+            if (functionDensity > 0 && densityGrid[x, y, z] > 126) {
                 typeGrid[x, y, z] = Brush.selectedType;
             }
         }

@@ -25,17 +25,17 @@ namespace ReefEditor.ContentLoading {
             yield return null;
 
             sw.Restart();
-            AssetStudio.Texture2D[] textureAssets;
-            AssetStudio.Material[] materialAssets;
-            GetAssets(out textureAssets, out materialAssets);
+
+            List<AssetStudio.Texture2D> textureAssets = new List<AssetStudio.Texture2D>();
+            List<AssetStudio.Material> materialAssets = new List<AssetStudio.Material>();
+            yield return StartCoroutine(GetAssets(textureAssets, materialAssets));
             sw.Stop();
             Debug.Log($"Got assets in {sw.ElapsedMilliseconds}ms");
             yield return null;
         
             sw.Restart();
-            SetMaterials(materialAssets);
-            yield return null;
-            SetTextures(textureAssets);
+            yield return StartCoroutine(SetMaterials(materialAssets.ToArray()));
+            yield return StartCoroutine(SetTextures(textureAssets.ToArray()));
             sw.Stop();
             Debug.Log($"Set assets in {sw.ElapsedMilliseconds}ms");
 
@@ -44,7 +44,7 @@ namespace ReefEditor.ContentLoading {
                 OnContentLoaded();
         }
 
-        void GetAssets(out AssetStudio.Texture2D[] loadedTextureAssets, out AssetStudio.Material[] loadedMaterialAssets) {
+        IEnumerator GetAssets(List<AssetStudio.Texture2D> textureAssets, List<AssetStudio.Material> materialAssets) {
 
             string bundleName = "\\resources.assets";
             string resourcesPath = string.Concat(Globals.instance.gamePath, "\\Subnautica_Data", bundleName);
@@ -53,9 +53,6 @@ namespace ReefEditor.ContentLoading {
 
             AssetStudio.AssetsManager assetManager = new AssetStudio.AssetsManager();
             assetManager.LoadFiles(files);
-
-            List<AssetStudio.Texture2D> textureAssets = new List<AssetStudio.Texture2D>();
-            List<AssetStudio.Material> materialAssets = new List<AssetStudio.Material>();
             
             foreach (AssetStudio.SerializedFile file in assetManager.assetsFileList) {
                 foreach(AssetStudio.Object obj in file.Objects) {
@@ -69,11 +66,11 @@ namespace ReefEditor.ContentLoading {
                     if (materialAsset != null) {
                         materialAssets.Add(materialAsset);
                     }
+
+                    yield return null;
                 }
             }
 
-            loadedMaterialAssets = materialAssets.ToArray();
-            loadedTextureAssets = textureAssets.ToArray();
             assetManager.Clear();
         }
 
@@ -114,7 +111,7 @@ namespace ReefEditor.ContentLoading {
             }
         }
 
-        void SetTextures(AssetStudio.Texture2D[] textureAssets) {
+        IEnumerator SetTextures(AssetStudio.Texture2D[] textureAssets) {
             foreach (AssetStudio.Texture2D textureAsset in textureAssets) {
                 List<int> blocktypes = new List<int>();
                 if (IsTextureNeeded(textureAsset.m_PathID, out blocktypes)) {
@@ -144,10 +141,11 @@ namespace ReefEditor.ContentLoading {
                         blocktypesData[b].SetTexture(textureType, textureAsset.m_PathID, newtexture);
                     }
                 }
+                yield return null;
             }
         }
 
-        void SetMaterials(AssetStudio.Material[] materialAssets) {
+        IEnumerator SetMaterials(AssetStudio.Material[] materialAssets) {
             foreach (AssetStudio.Material materialAsset in materialAssets) {
                 List<long> texturePathIDs = new List<long>();
                 foreach(KeyValuePair<string, AssetStudio.UnityTexEnv> pair in materialAsset.m_SavedProperties.m_TexEnvs) {
@@ -159,6 +157,8 @@ namespace ReefEditor.ContentLoading {
                         blocktypesData[blocktype].pathIDs.AddRange(texturePathIDs);
                     }
                 }
+
+                yield return null;
             }
         }
 

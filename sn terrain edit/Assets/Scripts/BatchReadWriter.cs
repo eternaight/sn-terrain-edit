@@ -137,7 +137,7 @@ namespace ReefEditor {
 
             Octree[,,] octrees = new Octree[5, 5, 5];
 
-            byte label = RegionLoader.loader.GetLabel(batch.batchIndex);
+            int label = RegionLoader.loader.GetLabel(batch.batchIndex);
 
             // form base
             for (int z = 0; z < 5; z++) {
@@ -195,7 +195,7 @@ namespace ReefEditor {
             batch.OnFinishRead(octrees);
         }
 
-        public void MatGalleryAction(ref List<OctNodeData> nodes, int node, Vector3Int octree, byte label, ref byte nextType, int depth) {
+        public void MatGalleryAction(ref List<OctNodeData> nodes, int node, Vector3Int octree, int label, ref byte nextType, int depth) {
 
             if (depth < 1) {
                 ushort childIndex = (ushort)nodes.Count;
@@ -261,7 +261,7 @@ namespace ReefEditor {
             for (int z = 0; z < 5; z++) {
                 for (int y = 0; y < 5; y++) {
                     for (int x = 0; x < 5; x++) {
-                        if (nodes[x, y, z].IdenticalTo(originalNodes[x, y, z])) {
+                        if (!nodes[x, y, z].IdenticalTo(originalNodes[x, y, z])) {
                             batchChanges.Add(nodes[x, y, z]);
                         }
                     } 
