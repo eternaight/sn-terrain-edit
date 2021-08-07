@@ -26,6 +26,8 @@ When you next load the batch in the game, you should see your changes.
 ## Open source code used:
 Asset Studio Scripts - by Perfare [(Asset Studio)](https://github.com/Perfare/AssetStudio/tree/master/AssetStudio)
 
+C# Protocol Buffers module - by mgravell & others [(protobuf-net-core)](https://github.com/protobuf-net/protobuf-net/tree/1bddeafb3e1e68c29b89b67a68ee16f42e059537)
+
 #### Texture2DDecoder module:
 - [Ishotihadus/mikunyan](https://github.com/Ishotihadus/mikunyan)
 - [BinomialLLC/crunch](https://github.com/BinomialLLC/crunch)
