@@ -20,20 +20,14 @@ namespace ReefEditor {
 
         void Start() {
             cam = Camera.main;
-
             brush = GetComponent<Brush>();
         }
 
         void OnRegionLoad() {
-
             moveLock = false;
-
             zoomLevel = 0.25f;
-            prevRotation = new Vector3(30, -135, 0);
-            transform.parent.rotation = Quaternion.Euler(prevRotation);
-
-            Vector3 regionSize = RegionLoader.loader.end - RegionLoader.loader.start + Vector3.one;
-            cam.transform.parent.position = regionSize * RegionLoader.octreeSize * 5 / 2;
+            transform.parent.rotation = Quaternion.Euler(new Vector3(30, -135, 0));
+            cam.transform.parent.position = (VoxelWorld.end - VoxelWorld.start + Vector3.one) * VoxelWorld.OCTREE_SIDE * 5 / 2;
         }
 
         void Update() {
@@ -59,16 +53,17 @@ namespace ReefEditor {
                     prevRotation = transform.parent.rotation.eulerAngles;
                 }
 
-                if (mouseOverUI) {
-                    brush.DisableBrushGizmo();
+                if (brush.enabled) {
+                    if (mouseOverUI) {
+                        brush.DisableBrushGizmo();
+                    }
+                    else {
+                        brush.BrushAction(Input.GetMouseButton(0));
+                        
+                        zoomLevel = Mathf.Clamp01(zoomLevel - Input.mouseScrollDelta.y * 0.01f);
+                        transform.localPosition = new Vector3(0, 0, zoomStart + zoomRange * zoomLevel);
+                    }
                 }
-                else {
-                    brush.BrushAction(Input.GetMouseButton(0));
-                    
-                    zoomLevel = Mathf.Clamp01(zoomLevel - Input.mouseScrollDelta.y * 0.01f);
-                    transform.localPosition = new Vector3(0, 0, zoomStart + zoomRange * zoomLevel);
-                }
-
             }
         }
 
@@ -93,8 +88,8 @@ namespace ReefEditor {
         Vector3 CapPosition(Vector3 pos) {
             
             // TODO: remove dependancy
-            Vector3 regionEnd = RegionLoader.loader.end;
-            Vector3 regionStart = RegionLoader.loader.start;
+            Vector3 regionEnd = VoxelWorld.end;
+            Vector3 regionStart = VoxelWorld.start;
 
             float cappedPosX = Mathf.Clamp(pos.x, 0, 160 * (regionEnd.x - regionStart.x + 1));
             float cappedPosY = Mathf.Clamp(pos.y, 0, 160 * (regionEnd.y - regionStart.y + 1));

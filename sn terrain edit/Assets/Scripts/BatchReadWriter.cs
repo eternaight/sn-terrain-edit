@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 using ReefEditor.Octrees;
+using ReefEditor.VoxelTech;
 
 namespace ReefEditor {
     public class BatchReadWriter : MonoBehaviour {
@@ -16,18 +17,7 @@ namespace ReefEditor {
             readWriter = this;
         }
 
-        public void ReadBatch(Batch batch) {
-            
-            if (!busy)
-                StartCoroutine(DoReadBatch(batch.OnFinishRead, batch.batchIndex));
-        }
-
-        public void DoMatGalleryBatch(Batch batch) {
-            
-            GenerateMaterialGallery(batch);
-        }
-
-        public IEnumerator DoReadBatch(ReadFinishedCall readFinishedCall, Vector3Int batchIndex) {
+        public IEnumerator ReadBatchCoroutine(ReadFinishedCall readFinishedCall, Vector3Int batchIndex) {
             string batchname = string.Format("\\compiled-batch-{0}-{1}-{2}.optoctrees", batchIndex.x, batchIndex.y, batchIndex.z);
             busy = true;
 
@@ -70,7 +60,7 @@ namespace ReefEditor {
                         nodesOfThisOctree[i] = (new OctNodeData((byte)type, (byte)signedDist, (ushort)childIndex));
                     }
 
-                    Octree octree = new Octree(x, y, z, RegionLoader.octreeSize, batchIndex * 160);
+                    Octree octree = new Octree(x, y, z, VoxelWorld.OCTREE_SIDE, batchIndex * 160);
                     octree.Write(nodesOfThisOctree);
                     octrees[z, y, x] = octree;
 
@@ -89,7 +79,7 @@ namespace ReefEditor {
             }
 
             busy = false;
-            yield return null;
+            yield break;
         } 
 
         public bool QuickReadBatch(Vector3Int batchIndex, out int[,,] octrees) {
@@ -133,11 +123,9 @@ namespace ReefEditor {
             return false;
         }
 
-        public void GenerateMaterialGallery(Batch batch) {
+        public void GenerateMaterialGallery(VoxelMesh batch) {
 
             Octree[,,] octrees = new Octree[5, 5, 5];
-
-            int label = RegionLoader.loader.GetLabel(batch.batchIndex);
 
             // form base
             for (int z = 0; z < 5; z++) {
@@ -147,7 +135,7 @@ namespace ReefEditor {
 
                     nodes.Add(new OctNodeData(37, 0, 0));
 
-                    Octree octree = new Octree(x, 0, z, RegionLoader.octreeSize, batch.transform.position);
+                    Octree octree = new Octree(x, 0, z, VoxelWorld.OCTREE_SIDE, batch.transform.position);
                     octree.Write(nodes.ToArray());
                     octrees[z, 0, x] = octree;
 
@@ -164,9 +152,9 @@ namespace ReefEditor {
                     Vector3Int octreeIndex = new Vector3Int(x, 1, z);
                     nodes.Add(new OctNodeData(0, 0, 0));
 
-                    MatGalleryAction(ref nodes, 0, octreeIndex, label, ref type, 0);
+                    MatGalleryAction(ref nodes, 0, octreeIndex, ref type, 0);
 
-                    Octree octree = new Octree(x, 1, z, RegionLoader.octreeSize, batch.transform.position);
+                    Octree octree = new Octree(x, 1, z, VoxelWorld.OCTREE_SIDE, batch.transform.position);
                     octree.Write(nodes.ToArray());
                     octrees[z, 1, x] = octree;
 
@@ -183,7 +171,7 @@ namespace ReefEditor {
                         Vector3Int octreeIndex = new Vector3Int(x, y, z);
                         nodes.Add(new OctNodeData(0, 0, 0));
 
-                        Octree octree = new Octree(x, y, z, RegionLoader.octreeSize, batch.transform.position);
+                        Octree octree = new Octree(x, y, z, VoxelWorld.OCTREE_SIDE, batch.transform.position);
                         octree.Write(nodes.ToArray());
                         octrees[z, y, x] = octree;
 
@@ -192,10 +180,10 @@ namespace ReefEditor {
             }
 
             busy = false;
-            batch.OnFinishRead(octrees);
+            batch.OctreesReadCallback(octrees);
         }
 
-        public void MatGalleryAction(ref List<OctNodeData> nodes, int node, Vector3Int octree, int label, ref byte nextType, int depth) {
+        public void MatGalleryAction(ref List<OctNodeData> nodes, int node, Vector3Int octree, ref byte nextType, int depth) {
 
             if (depth < 1) {
                 ushort childIndex = (ushort)nodes.Count;
@@ -215,7 +203,7 @@ namespace ReefEditor {
                 for (int b = 0; b < 8; b++) {
 
                     if (IsBottomNode(b)) {
-                        MatGalleryAction(ref nodes, childIndex + b, octree, label, ref nextType, depth + 1);
+                        MatGalleryAction(ref nodes, childIndex + b, octree, ref nextType, depth + 1);
                     }
                 }
             }
@@ -247,43 +235,60 @@ namespace ReefEditor {
             return true;
         }
 
-        public bool WriteEsperPatch(Vector3 batchIndex, Octree[,,] nodes, Octree[,,] originalNodes) {
-            string batchname = string.Format("\\batch-{0}-{1}-{2}.esperpatch", batchIndex.x, batchIndex.y, batchIndex.z);
+        public IEnumerator WriteOctreePatchCoroutine(string filename, VoxelMetaspace metaspace) {
+            string batchname = string.Format("\\{0}.optoctreepatch", filename);
             busy = true;
             
-            Debug.Log($"Writing {batchname} to {Globals.instance.batchOutputPath}");
+            Debug.Log($"Writing {metaspace.meshes.Length} batch patches to {Globals.instance.batchOutputPath}");
 
             BinaryWriter writer = new BinaryWriter(File.Open(Globals.instance.batchOutputPath + batchname, FileMode.OpenOrCreate));
+            // write version
             writer.Write(0u);
 
-            // get changed octrees data
-            List<Octree> batchChanges = new List<Octree>();
-            for (int z = 0; z < 5; z++) {
-                for (int y = 0; y < 5; y++) {
-                    for (int x = 0; x < 5; x++) {
-                        if (!nodes[x, y, z].IdenticalTo(originalNodes[x, y, z])) {
-                            batchChanges.Add(nodes[x, y, z]);
-                        }
-                    } 
-                }
+            foreach (VoxelMesh batch in metaspace.meshes) {
+                batch.UpdateOctreeDensity();
             }
-            
-            // start of batch write
-            writer.Write((short)batchIndex.x);
-            writer.Write((short)batchIndex.y);
-            writer.Write((short)batchIndex.z);
+    	    
+            foreach (VoxelMesh batch in metaspace.meshes) {
+                Octree[,,] nodes = batch.nodes;
+                // load original nodes from file?
+                NodeContainer container = new NodeContainer();
+                yield return StartCoroutine( ReadBatchCoroutine(container.Callback, batch.batchIndex) );
+                Octree[,,] originalNodes = container.nodes;
 
-            // num octrees to replace
-            writer.Write((byte)batchChanges.Count);
+                // get changed octrees data
+                List<Octree> batchChanges = new List<Octree>();
+                for (int z = 0; z < 5; z++) {
+                    for (int y = 0; y < 5; y++) {
+                        for (int x = 0; x < 5; x++) {
+                            if (!nodes[x, y, z].IdenticalTo(originalNodes[x, y, z])) {
+                                batchChanges.Add(nodes[x, y, z]);
+                            }
+                        } 
+                    }
+                }
+                
+                Debug.Log(batchChanges.Count);
+                if (batchChanges.Count != 0) {
+                    // start of batch write
+                    writer.Write((short)batch.batchIndex.x);
+                    writer.Write((short)batch.batchIndex.y);
+                    writer.Write((short)batch.batchIndex.z);
 
-            foreach (Octree change in batchChanges) {
-                writer.Write(change.Index);
-                WriteOctree(writer, change);
+                    // num octrees to replace
+                    writer.Write((byte)batchChanges.Count);
+
+                    foreach (Octree change in batchChanges) {
+                        if (change.Index > 125) Debug.Log("octree index > 125");
+                        writer.Write(change.Index);
+                        WriteOctree(writer, change);
+                    }
+                }
             }
 
             writer.Close();
             busy = false;
-            return true;
+            yield break;
         }
 
         void WriteOctree(BinaryWriter writer, Octree octree) {
@@ -300,6 +305,16 @@ namespace ReefEditor {
                 writer.Write(nodes[i].signedDist);
                 writer.Write(nodes[i].childPosition);
             }
+        }
+    }
+
+    [System.Serializable]
+    class NodeContainer {
+        public Octree[,,] nodes;
+
+        public void Callback(Octree[,,] octrees) {
+            Debug.Log("received nodes");
+            nodes = octrees;
         }
     }
 }

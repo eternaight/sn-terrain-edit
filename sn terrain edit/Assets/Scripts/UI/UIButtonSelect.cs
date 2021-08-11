@@ -2,29 +2,35 @@
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace ReefEditor.UI {
-    public class UIButtonSelect : MonoBehaviour {
-        public int selection;
-        int totalButtons;
-        public Color unselectedColor;
-        public Color selectedColor;
+public class UIButtonSelect : MonoBehaviour {
+    public int selection;
+    int totalButtons;
+    public Color unselectedColor;
+    public Color selectedColor;
 
-        public event Action OnSelectionChanged;
+    public event Action OnSelectionChanged;
 
-        void Start() {
-            totalButtons = transform.childCount;
-            UpdateButtons();
-        }
-        public void SetSelection(int newSel) {
-            selection = newSel;
-            UpdateButtons();
-            OnSelectionChanged();
-        }
-        void UpdateButtons() {
-            for (int i = 0; i < totalButtons; i++) {
-                Image buttonImage = transform.GetChild(i).GetComponent<Image>();
-                buttonImage.color = (i == selection) ? selectedColor : unselectedColor;
+    void Start() {
+        totalButtons = transform.childCount;
+        for (int childIndex = 0; childIndex < transform.childCount; childIndex++) {
+            Button butt = transform.GetChild(childIndex).GetComponent<Button>();
+            if (butt) {
+                butt.onClick.AddListener(() => SetSelection(butt));
             }
+        }
+
+        try { UpdateButtons(); }
+        catch (NullReferenceException _) {}
+    }
+    void SetSelection(Button buttonClicked) {
+        selection = buttonClicked.transform.GetSiblingIndex();
+        UpdateButtons();
+        OnSelectionChanged?.Invoke();
+    }
+    void UpdateButtons() {
+        for (int i = 0; i < totalButtons; i++) {
+            Image buttonImage = transform.GetChild(i).GetComponent<Image>();
+            buttonImage.color = (i == selection) ? selectedColor : unselectedColor;
         }
     }
 }

@@ -20,6 +20,9 @@ namespace ReefEditor {
         void Start() {
             CreateBrushObject();
         }
+        void OnDisable() {
+            DisableBrushGizmo();
+        }
         void OnRegionLoad() {
             SetBrushMaterial(11);
         }
@@ -30,6 +33,7 @@ namespace ReefEditor {
             brushAreaObject.GetComponent<SphereCollider>().enabled = false;
             brushAreaObject.transform.localScale = Vector3.one * Brush.brushSize;
         }
+
 
         public void BrushAction(bool doAction) {
             
@@ -59,7 +63,7 @@ namespace ReefEditor {
                         }
 
                         if (actionMode == BrushMode.Eyedropper) {
-                            SetBrushMaterial(mesh.SampleBlocktype(hit.point, ray));
+                            SetBrushMaterial(VoxelWorld.SampleBlocktype(hit.point, ray));
                         } else {
                             if (stroke.ReadyForNextAction()) {
 
@@ -90,7 +94,8 @@ namespace ReefEditor {
             }
         }
         public void DisableBrushGizmo() {
-            brushAreaObject.SetActive(false);
+            if (brushAreaObject)
+                brushAreaObject.SetActive(false);
         }
 
         public static void SetBrushMaterial(byte value) {
@@ -105,6 +110,10 @@ namespace ReefEditor {
             mode = (BrushMode)selection;
             Globals.instance.brushGizmoMat.color = Globals.instance.brushColors[selection];
             Brush.OnParametersChanged?.Invoke();
+        }
+
+        public static void SetEnabled(bool enable) {
+            Camera.main.GetComponent<Brush>().enabled = enable;
         }
 
         public struct BrushStroke {

@@ -129,7 +129,7 @@ namespace ReefEditor {
             blocktypes = submeshFaces.Keys.ToArray();
 
             Vector3 vertexOffsetSum = Vector3.one * -0.5f + offset;
-            float scaleFactor = Mathf.Pow(2, VoxelMesh.LEVEL_OF_DETAIL);
+            float scaleFactor = Mathf.Pow(2, VoxelWorld.LEVEL_OF_DETAIL);
             foreach (int blocktype in blocktypes) {
 
                 foreach (Face meshFace in submeshFaces[blocktype]) {

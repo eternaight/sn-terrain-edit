@@ -12,15 +12,15 @@ namespace ReefEditor.VoxelTech {
 
         public VoxelGrid(byte[,,] _coreDensity, byte[,,] _coreTypes) {
             
-            int _fullSide = VoxelMesh.RESOLUTION + 2;
+            int _fullSide = VoxelWorld.RESOLUTION + 2;
             densityGrid = new byte[_fullSide, _fullSide, _fullSide];
             typeGrid = new byte[_fullSide, _fullSide, _fullSide];;
             
             int so = 1;
 
-            for (int z = 0; z < VoxelMesh.RESOLUTION; z++) {
-                for (int y = 0; y < VoxelMesh.RESOLUTION; y++) {
-                    for (int x = 0; x < VoxelMesh.RESOLUTION; x++) {
+            for (int z = 0; z < VoxelWorld.RESOLUTION; z++) {
+                for (int y = 0; y < VoxelWorld.RESOLUTION; y++) {
+                    for (int x = 0; x < VoxelWorld.RESOLUTION; x++) {
                         densityGrid[x + so, y + so, z + so] = _coreDensity[x, y, z];
                         typeGrid[x + so, y + so, z + so] = _coreTypes[x, y, z];
                     }
@@ -30,52 +30,72 @@ namespace ReefEditor.VoxelTech {
             fullGridDim = Vector3Int.one * _fullSide;
         }
 
-        public void AddPaddingFull(VoxelMesh mesh, Vector3Int containerIndex) {
+        public void UpdateFullGrid(VoxelMetaspace metaspace, Vector3Int batchIndex, Vector3Int containerIndex) {
 
-            int _fullSide = VoxelMesh.RESOLUTION + 2;
+            int _fullSide = VoxelWorld.RESOLUTION + 2;
             for (int z = 0; z < _fullSide; z++) {
                 for (int y = 0; y < _fullSide; y++) {
                     for (int x = 0; x < _fullSide; x++) {
-                        
-                        Vector3Int neigIndex = containerIndex + CoreGridFromVertex(x, y, z);
-                        if (GridExists(neigIndex)) {
-                            VoxelGrid neigGrid = mesh.octreeContainers[Globals.LinearIndex(neigIndex.x, neigIndex.y, neigIndex.z, VoxelMesh.CONTAINERS_PER_SIDE)].grid;
-
-                            Vector3Int sample = new Vector3Int(x, y, z);
-                            if (x == 0) sample.x = VoxelMesh.RESOLUTION;
-                            else if (x == VoxelMesh.RESOLUTION + 1) sample.x = 1;
-                            
-                            if (y == 0) sample.y = VoxelMesh.RESOLUTION;
-                            else if (y == VoxelMesh.RESOLUTION + 1) sample.y = 1;
-
-                            if (z == 0) sample.z = VoxelMesh.RESOLUTION;
-                            else if (z == VoxelMesh.RESOLUTION + 1) sample.z = 1;
-
-                            densityGrid[x, y, z] =  neigGrid.densityGrid[sample.x, sample.y, sample.z];
-                            typeGrid[x, y, z] =     neigGrid.typeGrid[sample.x, sample.y, sample.z];
+                        VoxelGrid neigGrid;
+                        if (GridOffsetFromVoxel(x, y, z) == Vector3Int.zero) {
+                            continue;
                         }
+
+                        Vector3Int neigOctreeIndex = containerIndex + GridOffsetFromVoxel(x, y, z);
+                        if (!OctreeExists(neigOctreeIndex)) {
+                            Vector3Int neigBatchIndex = batchIndex + GridOffsetFromVoxel(x, y, z);
+                            if (!BatchExists(neigBatchIndex)) {
+                                continue;
+                            }
+                            else {
+                                // Get grid from neighbouring VoxelMesh
+                                neigGrid = metaspace.GetVoxelGrid(neigBatchIndex, IndexModFive(neigOctreeIndex));
+                            }
+                        } else {
+                            // Get grid from neighbouring container
+                            neigGrid = metaspace.GetVoxelGrid(batchIndex, neigOctreeIndex);
+                        }
+
+                        Vector3Int sample = new Vector3Int(x, y, z);
+                        if (x == 0) sample.x = VoxelWorld.RESOLUTION;
+                        else if (x == VoxelWorld.RESOLUTION + 1) sample.x = 1;
+                        
+                        if (y == 0) sample.y = VoxelWorld.RESOLUTION;
+                        else if (y == VoxelWorld.RESOLUTION + 1) sample.y = 1;
+
+                        if (z == 0) sample.z = VoxelWorld.RESOLUTION;
+                        else if (z == VoxelWorld.RESOLUTION + 1) sample.z = 1;
+
+                        densityGrid[x, y, z] =  neigGrid.densityGrid[sample.x, sample.y, sample.z];
+                        typeGrid[x, y, z] =     neigGrid.typeGrid[sample.x, sample.y, sample.z];
                     }
                 }
             }
         }
 
-        Vector3Int CoreGridFromVertex(int x, int y, int z) {
+        static bool OctreeExists(Vector3Int treeIndex) {
+            return (treeIndex.x >= 0 && treeIndex.x < VoxelWorld.CONTAINERS_PER_SIDE && treeIndex.y >= 0 && treeIndex.y < VoxelWorld.CONTAINERS_PER_SIDE && treeIndex.z >= 0 && treeIndex.z < VoxelWorld.CONTAINERS_PER_SIDE);
+        }
+        static bool BatchExists(Vector3Int batchIndex) {
+            return (batchIndex.x >= VoxelWorld.start.x && batchIndex.x <= VoxelWorld.end.x
+                && batchIndex.y >= VoxelWorld.start.y && batchIndex.y <= VoxelWorld.end.y 
+                && batchIndex.z >= VoxelWorld.start.z && batchIndex.z <= VoxelWorld.end.z);
+        }
+
+        Vector3Int GridOffsetFromVoxel(int x, int y, int z) {
             Vector3Int offset = Vector3Int.zero;
             if (x == 0) offset.x = -1;
-            else if (x == VoxelMesh.RESOLUTION + 1) offset.x = 1;
+            else if (x == VoxelWorld.RESOLUTION + 1) offset.x = 1;
 
             if (y == 0) offset.y = -1;
-            else if (y == VoxelMesh.RESOLUTION + 1) offset.y = 1;
+            else if (y == VoxelWorld.RESOLUTION + 1) offset.y = 1;
 
             if (z == 0) offset.z = -1;
-            else if (z == VoxelMesh.RESOLUTION + 1) offset.z = 1;
+            else if (z == VoxelWorld.RESOLUTION + 1) offset.z = 1;
 
             return offset;
         }
-
-        static bool GridExists(Vector3Int gridIndex) {
-            return (gridIndex.x >= 0 && gridIndex.x < VoxelMesh.CONTAINERS_PER_SIDE && gridIndex.y >= 0 && gridIndex.y < VoxelMesh.CONTAINERS_PER_SIDE && gridIndex.z >= 0 && gridIndex.z < VoxelMesh.CONTAINERS_PER_SIDE);
-        }
+        Vector3Int IndexModFive(Vector3Int octreeIndex) => new Vector3Int((octreeIndex.x + 5) % 5, (octreeIndex.y + 5) % 5, (octreeIndex.z + 5) % 5);
 
         public void GetFullGrids(out byte[] _fullDensityGrid, out byte[] _fullTypeGrid) {
             _fullDensityGrid =   Globals.CubeToLineArray(densityGrid);
@@ -91,9 +111,9 @@ namespace ReefEditor.VoxelTech {
                 Array.Copy(densityGrid, oldDensityGrid, densityGrid.Length);
                 Array.Copy(typeGrid, oldTypeGrid, typeGrid.Length);
             }
-            for (int z = 1; z < VoxelMesh.RESOLUTION + 1; z++) {
-                for (int y = 1; y < VoxelMesh.RESOLUTION + 1; y++) {
-                    for (int x = 1; x < VoxelMesh.RESOLUTION + 1; x++) {
+            for (int z = 1; z < VoxelWorld.RESOLUTION + 1; z++) {
+                for (int y = 1; y < VoxelWorld.RESOLUTION + 1; y++) {
+                    for (int x = 1; x < VoxelWorld.RESOLUTION + 1; x++) {
                         ApplyGridAction(x, y, z, gridOrigin, stroke);
                     }
                 }

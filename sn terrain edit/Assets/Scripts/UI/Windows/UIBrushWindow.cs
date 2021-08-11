@@ -9,17 +9,21 @@ namespace ReefEditor.UI {
             Brush.SetBrushSize(0);
             Brush.SetBrushMode(0);
             Brush.SetBrushMaterial(11);
-            Brush.OnParametersChanged += RedrawValues;
-        }
-        public override void Start() {
             modeSelector = transform.GetChild(1).GetChild(1).GetComponent<UIButtonSelect>();
             modeSelector.OnSelectionChanged += SetNewBrushMode;
+            Brush.OnParametersChanged += RedrawValues;
         }
 
         public override void EnableWindow()
         {
+            Brush.SetEnabled(true);
             base.EnableWindow();
             RedrawValues();
+        }
+        public override void DisableWindow()
+        {
+            Brush.SetEnabled(false);
+            base.DisableWindow();
         }
 
         // For receiving commands from UI

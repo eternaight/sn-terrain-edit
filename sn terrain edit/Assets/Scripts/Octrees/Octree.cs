@@ -7,7 +7,7 @@ namespace ReefEditor.Octrees {
     [System.Serializable]
     public class Octree {
         
-        public Vector3Int batchIndex;
+        public Vector3Int index;
         OctNode node;
         public int MaxDepth {
             get {
@@ -21,13 +21,13 @@ namespace ReefEditor.Octrees {
         }
         public byte Index {
             get {
-                return (byte)((node.position.x / 32) + (node.position.y / 32) * 5 + (node.position.z / 32) * 25);
+                return (byte)(index.x * 25 + index.y * 5 + index.z);
             }
         }
 
         public Octree(int x, int y, int z, float rootSize, Vector3 batchOrigin) {
 
-            this.batchIndex = new Vector3Int(x, y, z);
+            this.index = new Vector3Int(x, y, z);
             
             node = new OctNode(batchOrigin + new Vector3(x, y, z) * rootSize, rootSize);
         }
@@ -50,8 +50,6 @@ namespace ReefEditor.Octrees {
 
         public OctNodeData[] Read() {
             List<OctNodeData> dataarray = new List<OctNodeData>();
-
-            int i = batchIndex.x * 25 + batchIndex.y * 5 + batchIndex.z;
 
             dataarray.Add(node.data);
             node.ReadData(ref dataarray, 0);
@@ -236,14 +234,14 @@ namespace ReefEditor.Octrees {
                     }
                 } else {
                     
-                    Vector3 localPos = (position - octreeOrigin) / (Mathf.Pow(2, VoxelMesh.LEVEL_OF_DETAIL));
+                    Vector3 localPos = (position - octreeOrigin) / (Mathf.Pow(2, VoxelWorld.LEVEL_OF_DETAIL));
                     Vector3Int start = new Vector3Int((int)localPos.x, (int)localPos.y, (int)localPos.z);
 
                     for (int k = start.z; k < start.z + thisCubeSize; ++k) {
                         for (int j = start.y; j < start.y + thisCubeSize; ++j) {
                             for (int i = start.x; i < start.x + thisCubeSize; ++i) {
-                                typeGrid[Globals.LinearIndex(i, j, k, VoxelMesh.RESOLUTION)] = data.type;
-                                densityGrid[Globals.LinearIndex(i, j, k, VoxelMesh.RESOLUTION)] = data.signedDist;
+                                typeGrid[Globals.LinearIndex(i, j, k, VoxelWorld.RESOLUTION)] = data.type;
+                                densityGrid[Globals.LinearIndex(i, j, k, VoxelWorld.RESOLUTION)] = data.signedDist;
                             }
                         }
                     }
@@ -362,8 +360,7 @@ namespace ReefEditor.Octrees {
                 return childrenIdentical &&
                 size == other.size && 
                 data.type == other.data.type && 
-                data.signedDist == other.data.signedDist &&
-                position == other.position;
+                data.signedDist == other.data.signedDist;
             }
         }
     }

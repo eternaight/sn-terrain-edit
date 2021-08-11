@@ -5,6 +5,7 @@ namespace ReefEditor.UI {
     public class EditorUI : MonoBehaviour {
         public static EditorUI inst;
         [SerializeField] RectTransform statusBar;
+        public GameObject errorPrefab;
 
         void Start() {
             inst = this;
@@ -18,6 +19,15 @@ namespace ReefEditor.UI {
         }
         public static void DisableStatusBar() {
             inst.statusBar.gameObject.SetActive(false);
+        }
+
+        public static void DisplayErrorMessage(string message) {
+            // clear previous error if it exists
+            if (inst.statusBar.parent.childCount > 1) {
+                Destroy(inst.statusBar.parent.GetChild(1).gameObject);
+            }
+            GameObject go = Instantiate(inst.errorPrefab, inst.statusBar.parent);
+            go.transform.SetAsLastSibling();
         }
     }
 }

@@ -5,59 +5,83 @@ using ReefEditor.ContentLoading;
 
 namespace ReefEditor.VoxelTech {
     public class VoxelMesh : MonoBehaviour {
-        public static int LEVEL_OF_DETAIL { get; private set; } //0-5 -> 32-1 side
-        const int OCTREE_SIDE = 32;
-        public const int CONTAINERS_PER_SIDE = 5;
-
-        public static int RESOLUTION {
-            get {
-                return (int)Mathf.Pow(2, 5 - LEVEL_OF_DETAIL);
-            }
-        }
 
         internal PointContainer[] octreeContainers;
-        Octree[,,] rootNodes;
+        public Octree[,,] nodes;
+        public Vector3Int batchIndex;
 
-        public void Init(Octree[,,] _rootNodes, int _lod) {
+        public void Create(Vector3Int _batchIndex) {
 
-            int _totalContainers = CONTAINERS_PER_SIDE * CONTAINERS_PER_SIDE * CONTAINERS_PER_SIDE;
-            LEVEL_OF_DETAIL = Mathf.Clamp(_lod, 0, 5);
+            batchIndex = _batchIndex;
+            SetupGameObject();
 
-            rootNodes = _rootNodes;
-            bool _firstInit = octreeContainers == null;
-            if (_firstInit) {
-                octreeContainers = new PointContainer[_totalContainers];
-            }
+            const int octreeSide = VoxelWorld.CONTAINERS_PER_SIDE;
+            const int octreesTotal = octreeSide * octreeSide * octreeSide;
 
-            for (int z = 0; z < CONTAINERS_PER_SIDE; z++) {
-                for (int y = 0; y < CONTAINERS_PER_SIDE; y++) {
-                    for (int x = 0; x < CONTAINERS_PER_SIDE; x++) {
-                        
-                        int containerI = x + y * CONTAINERS_PER_SIDE + z * CONTAINERS_PER_SIDE * CONTAINERS_PER_SIDE;
+            octreeContainers = new PointContainer[octreesTotal];
 
-                        if (_firstInit) {
-                            octreeContainers[containerI] = new PointContainer(transform, new Vector3Int(x, y, z));
-                        }
-                        octreeContainers[containerI].SetOctree(rootNodes[z, y, x]);
+            for (int z = 0; z < octreeSide; z++) {
+                for (int y = 0; y < octreeSide; y++) {
+                    for (int x = 0; x < octreeSide; x++) {
+                        int containerI = x + y * octreeSide + z * octreeSide * octreeSide;
+                        octreeContainers[containerI] = new PointContainer(transform, new Vector3Int(x, y, z));
                     }
                 }
             }
+        }
+        private void SetupGameObject() {
+            const int octreeSide = VoxelWorld.OCTREE_SIDE;
+            transform.position = (batchIndex - VoxelWorld.start) * octreeSide * 5;
 
-            RefreshContainerMeshes();
-            if (!SNContentLoader.instance.contentLoaded) {
-                SNContentLoader.instance.OnContentLoaded += RefreshContainerMeshes;
-            }
+            BoxCollider coll = gameObject.AddComponent<BoxCollider>();
+            gameObject.layer = 1;
+
+            coll.center = new Vector3(octreeSide * 2.5f, octreeSide * 2.5f, octreeSide * 2.5f);
+            coll.size = new Vector3(octreeSide * 5, octreeSide * 5, octreeSide * 5);
+            coll.isTrigger = true;
         }
 
-        void RefreshContainerMeshes() {
+        public void OctreesReadCallback(Octree[,,] _nodes) {
+
+            if (_nodes == null) return;
+
+            const int octreeSide = VoxelWorld.CONTAINERS_PER_SIDE;
+
+            for (int z = 0; z < octreeSide; z++) {
+                for (int y = 0; y < octreeSide; y++) {
+                    for (int x = 0; x < octreeSide; x++) {
+                        int containerI = x + y * octreeSide + z * octreeSide * octreeSide;
+                        octreeContainers[containerI].SetOctree(_nodes[z, y, x]);
+                    }
+                }
+            }
+        }
+        public void Regenerate() {
             for (int i = 0; i < octreeContainers.Length; i++) {
                 octreeContainers[i].UpdateMesh();
             }
         }
 
+        public VoxelGrid GetVoxelGrid(Vector3Int containerIndex) {
+            return octreeContainers[Globals.LinearIndex(containerIndex.x, containerIndex.y, containerIndex.z, VoxelWorld.CONTAINERS_PER_SIDE)].grid;
+        }
+
+        public void UpdateFullGrids(VoxelMetaspace metaspace) {
+            foreach (PointContainer container in octreeContainers) {
+                container.UpdateFullGrid(metaspace, batchIndex);
+            }
+        }
+
+        public void Write() {
+            throw new System.NotImplementedException();
+        }
+
         public void DensityAction_Sphere(Brush.BrushStroke stroke) {
             
-            Vector3 brushPosition = stroke.brushLocation;
+            const int CONTAINERS_PER_SIDE = VoxelWorld.CONTAINERS_PER_SIDE;
+            int RESOLUTION = VoxelWorld.RESOLUTION;
+
+            Vector3 brushPosition = stroke.brushLocation - transform.position;
             Vector3Int hitChunk = new Vector3Int((int)brushPosition.x / RESOLUTION, (int)brushPosition.y / RESOLUTION, (int)brushPosition.z / RESOLUTION);
 
             for (int k = 0; k < CONTAINERS_PER_SIDE * CONTAINERS_PER_SIDE * CONTAINERS_PER_SIDE; k++) {
@@ -73,8 +97,8 @@ namespace ReefEditor.VoxelTech {
             for (int z = 0; z < 5; z++) {
                 for (int y = 0; y < 5; y++) {
                     for (int x = 0; x < 5; x++) {
-                        PointContainer _container = octreeContainers[Globals.LinearIndex(x, y, z, CONTAINERS_PER_SIDE)];
-                        rootNodes[z, y, x].DeRasterizeGrid(_container.grid.densityGrid, _container.grid.typeGrid, RESOLUTION + 2, 5 - LEVEL_OF_DETAIL);
+                        PointContainer _container = octreeContainers[Globals.LinearIndex(x, y, z, VoxelWorld.CONTAINERS_PER_SIDE)];
+                        nodes[z, y, x].DeRasterizeGrid(_container.grid.densityGrid, _container.grid.typeGrid, VoxelWorld.RESOLUTION + 2, 5 - VoxelWorld.LEVEL_OF_DETAIL);
                     }
                 }
             }
@@ -84,9 +108,10 @@ namespace ReefEditor.VoxelTech {
             
             if (_retryCount == 4) return 0;
 
-            int x = (int)_point.x / RESOLUTION;
-            int y = (int)_point.y / RESOLUTION;
-            int z = (int)_point.z / RESOLUTION;
+            Vector3 _local = _point - transform.position; 
+            int x = (int)_local.x / VoxelWorld.RESOLUTION;
+            int y = (int)_local.y / VoxelWorld.RESOLUTION;
+            int z = (int)_local.z / VoxelWorld.RESOLUTION;
 
             byte type = octreeContainers[Globals.LinearIndex(x, y, z, 5)].SampleBlocktype(_point);
 
@@ -114,26 +139,10 @@ namespace ReefEditor.VoxelTech {
 
             public PointContainer(Transform _voxelandTf, Vector3Int _index) {
                 octreeIndex = _index;
-                bounds = new Bounds(octreeIndex * RESOLUTION + Vector3.one * RESOLUTION / 2, Vector3.one * RESOLUTION);
+                bounds = new Bounds(octreeIndex * VoxelWorld.RESOLUTION + Vector3.one * VoxelWorld.RESOLUTION / 2, Vector3.one * VoxelWorld.RESOLUTION);
 
                 CreateMeshObject(_voxelandTf);
             }
-            public void SetOctree(Octree _octree) {
-                octree = _octree;
-                UpdateGrid();
-            }
-            public void UpdateGrid() {
-
-                int _res = RESOLUTION;
-                byte[] tempTypes = new byte[_res * _res * _res];
-                byte[] tempDensities = new byte[_res * _res * _res];
-
-                octree.Rasterize(tempDensities, tempTypes, RESOLUTION, 5 - LEVEL_OF_DETAIL);
-
-                grid = new VoxelGrid(Globals.LineToCubeArray(tempDensities, Vector3Int.one * RESOLUTION), 
-                                    Globals.LineToCubeArray(tempTypes, Vector3Int.one * RESOLUTION));
-            } 
-
             void CreateMeshObject(Transform _voxelandTf) {
                 meshObj = new GameObject("VoxelMesh");
                 meshObj.AddComponent<MeshFilter>();
@@ -141,20 +150,34 @@ namespace ReefEditor.VoxelTech {
                 meshObj.transform.SetParent(_voxelandTf);
                 meshObj.transform.localPosition = Vector3.zero;
             }
+            public void SetOctree(Octree _octree) {
+                octree = _octree;
+                RasterizeOctree();
+            }
+            public void RasterizeOctree() {
+
+                int _res = VoxelWorld.RESOLUTION;
+                byte[] tempTypes = new byte[_res * _res * _res];
+                byte[] tempDensities = new byte[_res * _res * _res];
+
+                octree.Rasterize(tempDensities, tempTypes, _res, 5 - VoxelWorld.LEVEL_OF_DETAIL);
+
+                grid = new VoxelGrid(Globals.LineToCubeArray(tempDensities, Vector3Int.one * _res), 
+                                    Globals.LineToCubeArray(tempTypes, Vector3Int.one * _res));
+            } 
+
 
             public void DensityAction_Sphere(Brush.BrushStroke stroke) {
-                grid.ApplyDensityFunction(stroke, octreeIndex * RESOLUTION);
+                grid.ApplyDensityFunction(stroke, octreeIndex * VoxelWorld.RESOLUTION + meshObj.transform.position);
             }
 
             public void UpdateMesh() {
-                CheckCopyOctreeSides();
-
                 byte[] _tempDensities;
                 byte[] _tempTypes;
                 grid.GetFullGrids(out _tempDensities, out _tempTypes);
                 
                 int[] blocktypes;
-                Vector3 offset = octreeIndex * RESOLUTION;
+                Vector3 offset = octreeIndex * VoxelWorld.RESOLUTION;
                 List<Mesh> _containerMeshes = MeshBuilder.builder.GenerateMesh(_tempDensities, _tempTypes, grid.fullGridDim, offset, out blocktypes);
 
                 // update data
@@ -177,13 +200,10 @@ namespace ReefEditor.VoxelTech {
                 }
             }
 
-            public void CheckCopyOctreeSides() {
-                VoxelMesh voxelMesh = meshObj.transform.parent.GetComponent<VoxelMesh>();
-                grid.AddPaddingFull(voxelMesh, octreeIndex);
-            }
+            public void UpdateFullGrid(VoxelMetaspace metaspace, Vector3Int batchIndex) => grid.UpdateFullGrid(metaspace, batchIndex, octreeIndex);
 
             public byte SampleBlocktype(Vector3 worldPoint) {
-                Vector3 localPoint = worldPoint - octreeIndex * RESOLUTION;
+                Vector3 localPoint = worldPoint - octreeIndex * VoxelWorld.RESOLUTION - meshObj.transform.parent.position;
                 int x = (int)localPoint.x;
                 int y = (int)localPoint.y;
                 int z = (int)localPoint.z;
