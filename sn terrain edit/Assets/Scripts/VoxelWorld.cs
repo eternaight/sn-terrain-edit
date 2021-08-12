@@ -6,10 +6,14 @@ using ReefEditor.VoxelTech;
 namespace ReefEditor {
     public class VoxelWorld : MonoBehaviour {
         // constants
-        public static int LEVEL_OF_DETAIL { get; private set; } //0-5 -> 32-1 side
+        // LOD. 0-5 lod => 32-1 resolution
+        public static int LEVEL_OF_DETAIL { get; private set; } 
+        // this defines the in-game size of the meshes
         public const int OCTREE_SIDE = 32;
+        // this is the 'resolution' but for batches
         public const int CONTAINERS_PER_SIDE = 5;
 
+        // This defines the count of voxels (count = resolution^3)
         public static int RESOLUTION {
             get {
                 return (int)Mathf.Pow(2, 5 - LEVEL_OF_DETAIL);
@@ -22,6 +26,11 @@ namespace ReefEditor {
         // public static fields
         public static Vector3Int start;
         public static Vector3Int end;
+        public static Vector3Int regionSize {
+            get {
+                return end - start + Vector3Int.one;
+            }
+        }
 
         // private fields
         bool aRegionIsLoaded = false;
@@ -103,7 +112,6 @@ namespace ReefEditor {
         }
         IEnumerator RegionLoadCoroutine() {
 
-            Vector3Int regionSize = end - start + Vector3Int.one;
             int totalBatches = regionSize.x * regionSize.y * regionSize.z;
 
             metaspace.Create(totalBatches);
@@ -135,17 +143,14 @@ namespace ReefEditor {
             // batch -> octree -> voxel
             if (retryCount == 32) return 0;
 
-            Vector3Int regionSize = end - start + Vector3Int.one;
-
             // batch
-            Vector3Int batchOffset = new Vector3Int(Mathf.FloorToInt(hitPoint.x / 160), Mathf.FloorToInt(hitPoint.z / 160) * regionSize.x, Mathf.FloorToInt(hitPoint.y / 160) * regionSize.x * regionSize.z);
-            Vector3Int batchIndex = start + batchOffset;
-            VoxelMesh batch = world.metaspace.meshes[batchOffset.x + batchOffset.z * regionSize.x + batchOffset.y * regionSize.z * regionSize.x];
+            Vector3Int batchOffset = LocalBatchFromPoint(hitPoint);
+            VoxelMesh batch = world.metaspace[batchOffset + start];
 
-            Vector3 _local = hitPoint - batchOffset * RESOLUTION * OCTREE_SIDE; 
-            int x = (int)_local.x / RESOLUTION;
-            int y = (int)_local.y / RESOLUTION;
-            int z = (int)_local.z / RESOLUTION;
+            Vector3 _local = hitPoint - batchOffset * OCTREE_SIDE * CONTAINERS_PER_SIDE; 
+            int x = (int)_local.x / OCTREE_SIDE;
+            int y = (int)_local.y / OCTREE_SIDE;
+            int z = (int)_local.z / OCTREE_SIDE;
 
             byte type = batch.octreeContainers[Globals.LinearIndex(x, y, z, 5)].SampleBlocktype(hitPoint);
 
@@ -159,7 +164,9 @@ namespace ReefEditor {
             return type;
         }
 
-        // Voxel Metaspace access
-
+        public static Vector3Int LocalBatchFromPoint(Vector3 p) {
+            const int batchSide = OCTREE_SIDE * CONTAINERS_PER_SIDE;
+            return new Vector3Int(Mathf.FloorToInt(p.x / batchSide), Mathf.FloorToInt(p.z / batchSide) * regionSize.x, Mathf.FloorToInt(p.y / batchSide) * regionSize.x * regionSize.z);
+        }
     }
 }

@@ -70,7 +70,7 @@ namespace ReefEditor {
                                 if (stroke.strokeLength == 0) stroke.FirstStroke(hit.point, hit.normal, brushSize, brushStrength, actionMode);
                                 else stroke.ContinueStroke(hit.point, actionMode);
 
-                                mesh.DensityAction_Sphere(stroke);
+                                VoxelMetaspace.metaspace.ApplyDensityAction(stroke);
                             }
                         }
                     }

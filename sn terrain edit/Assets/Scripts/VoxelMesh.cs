@@ -24,7 +24,7 @@ namespace ReefEditor.VoxelTech {
                 for (int y = 0; y < octreeSide; y++) {
                     for (int x = 0; x < octreeSide; x++) {
                         int containerI = x + y * octreeSide + z * octreeSide * octreeSide;
-                        octreeContainers[containerI] = new PointContainer(transform, new Vector3Int(x, y, z));
+                        octreeContainers[containerI] = new PointContainer(transform, new Vector3Int(x, y, z), batchIndex);
                     }
                 }
             }
@@ -66,9 +66,9 @@ namespace ReefEditor.VoxelTech {
             return octreeContainers[Globals.LinearIndex(containerIndex.x, containerIndex.y, containerIndex.z, VoxelWorld.CONTAINERS_PER_SIDE)].grid;
         }
 
-        public void UpdateFullGrids(VoxelMetaspace metaspace) {
+        public void UpdateFullGrids() {
             foreach (PointContainer container in octreeContainers) {
-                container.UpdateFullGrid(metaspace, batchIndex);
+                container.UpdateFullGrid();
             }
         }
 
@@ -76,7 +76,7 @@ namespace ReefEditor.VoxelTech {
             throw new System.NotImplementedException();
         }
 
-        public void DensityAction_Sphere(Brush.BrushStroke stroke) {
+        public void ApplyDensityAction(Brush.BrushStroke stroke) {
             
             const int CONTAINERS_PER_SIDE = VoxelWorld.CONTAINERS_PER_SIDE;
             int RESOLUTION = VoxelWorld.RESOLUTION;
@@ -87,7 +87,7 @@ namespace ReefEditor.VoxelTech {
             for (int k = 0; k < CONTAINERS_PER_SIDE * CONTAINERS_PER_SIDE * CONTAINERS_PER_SIDE; k++) {
                 Bounds bounds = octreeContainers[k].bounds;
                 if (OctreeRaycasting.DistanceToBox(brushPosition, bounds.min, bounds.max) <= stroke.brushRadius) {
-                    octreeContainers[k].DensityAction_Sphere(stroke);
+                    octreeContainers[k].ApplyDensityAction(stroke);
                     octreeContainers[k].UpdateMesh();
                 }
             }
@@ -125,8 +125,8 @@ namespace ReefEditor.VoxelTech {
             return type;
         }
 
-        [SerializeField]
         internal class PointContainer {
+            Vector3Int batchIndex;
             Vector3Int octreeIndex;
 
             // density data
@@ -137,14 +137,17 @@ namespace ReefEditor.VoxelTech {
             public Bounds bounds;
             GameObject meshObj;
 
-            public PointContainer(Transform _voxelandTf, Vector3Int _index) {
-                octreeIndex = _index;
-                bounds = new Bounds(octreeIndex * VoxelWorld.RESOLUTION + Vector3.one * VoxelWorld.RESOLUTION / 2, Vector3.one * VoxelWorld.RESOLUTION);
+            public PointContainer(Transform _voxelandTf, Vector3Int _octreeIndex, Vector3Int _batchIndex) {
+                octreeIndex = _octreeIndex;
+                batchIndex = _batchIndex;
+                int fullGridSide = VoxelWorld.RESOLUTION + 2;
+                // assume bounds has a center relative to game object origin
+                bounds = new Bounds(octreeIndex * VoxelWorld.RESOLUTION + Vector3.one * fullGridSide / 2, Vector3.one * fullGridSide);
 
                 CreateMeshObject(_voxelandTf);
             }
             void CreateMeshObject(Transform _voxelandTf) {
-                meshObj = new GameObject("VoxelMesh");
+                meshObj = new GameObject("OctreeMesh");
                 meshObj.AddComponent<MeshFilter>();
                 meshObj.AddComponent<MeshRenderer>();
                 meshObj.transform.SetParent(_voxelandTf);
@@ -163,11 +166,11 @@ namespace ReefEditor.VoxelTech {
                 octree.Rasterize(tempDensities, tempTypes, _res, 5 - VoxelWorld.LEVEL_OF_DETAIL);
 
                 grid = new VoxelGrid(Globals.LineToCubeArray(tempDensities, Vector3Int.one * _res), 
-                                    Globals.LineToCubeArray(tempTypes, Vector3Int.one * _res));
+                                    Globals.LineToCubeArray(tempTypes, Vector3Int.one * _res), octreeIndex, batchIndex);
             } 
 
 
-            public void DensityAction_Sphere(Brush.BrushStroke stroke) {
+            public void ApplyDensityAction(Brush.BrushStroke stroke) {
                 grid.ApplyDensityFunction(stroke, octreeIndex * VoxelWorld.RESOLUTION + meshObj.transform.position);
             }
 
@@ -178,17 +181,17 @@ namespace ReefEditor.VoxelTech {
                 
                 int[] blocktypes;
                 Vector3 offset = octreeIndex * VoxelWorld.RESOLUTION;
-                List<Mesh> _containerMeshes = MeshBuilder.builder.GenerateMesh(_tempDensities, _tempTypes, grid.fullGridDim, offset, out blocktypes);
+                Mesh containerMesh = MeshBuilder.builder.GenerateMesh(_tempDensities, _tempTypes, grid.fullGridDim, offset, out blocktypes);
 
                 // update data
-                if (_containerMeshes.Count > 0) {
-                    meshObj.GetComponent<MeshFilter>().sharedMesh = _containerMeshes[0];
+                if (containerMesh.triangles.Length > 0) {
+                    meshObj.GetComponent<MeshFilter>().sharedMesh = containerMesh;
 
                     MeshCollider coll = meshObj.GetComponent<MeshCollider>();
                     if (!coll) {
                         meshObj.AddComponent<MeshCollider>();
                     } else {
-                        coll.sharedMesh = _containerMeshes[0];
+                        coll.sharedMesh = containerMesh;
                     }
 
                     MeshRenderer renderer = meshObj.GetComponent<MeshRenderer>();
@@ -200,7 +203,7 @@ namespace ReefEditor.VoxelTech {
                 }
             }
 
-            public void UpdateFullGrid(VoxelMetaspace metaspace, Vector3Int batchIndex) => grid.UpdateFullGrid(metaspace, batchIndex, octreeIndex);
+            public void UpdateFullGrid() => grid.UpdateFullGrid();
 
             public byte SampleBlocktype(Vector3 worldPoint) {
                 Vector3 localPoint = worldPoint - octreeIndex * VoxelWorld.RESOLUTION - meshObj.transform.parent.position;

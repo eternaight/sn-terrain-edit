@@ -64,11 +64,9 @@ namespace ReefEditor {
             }
         }
 
-        public List<Mesh> GenerateMesh(byte[] densityGrid, byte[] typeGrid, Vector3Int resolution, Vector3 offset, out int[] blocktypes) {
+        public Mesh GenerateMesh(byte[] densityGrid, byte[] typeGrid, Vector3Int resolution, Vector3 offset, out int[] blocktypes) {
 
             // Setting data inside shader
-
-            //Debug.Log($"Creating buffers of size: {resolution.ToString()}");
 
             CreateBuffers(resolution);
 
@@ -109,7 +107,7 @@ namespace ReefEditor {
             return MakeMeshes(faces, resolution, offset, out blocktypes);
         } 
 
-        List<Mesh> MakeMeshes(Face[] faces, Vector3Int resolution, Vector3 offset, out int[] blocktypes) {
+        Mesh MakeMeshes(Face[] faces, Vector3Int resolution, Vector3 offset, out int[] blocktypes) {
             
             // calculate vertex positions
             VoxelVertex[] verticesOfNodes = new VoxelVertex[resolution.x * resolution.y * resolution.z];
@@ -201,10 +199,7 @@ namespace ReefEditor {
             }
             
             mesh.RecalculateNormals();
-
-            List<Mesh> meshes = new List<Mesh>();
-            meshes.Add(mesh);
-            return meshes;
+            return mesh;
         }
 
         public void ProcessSimpleBatch(Vector3[] vertices, int[] triangles, Vector3[] normals, Vector2[] uvs, ref int lastFace, int[,,] octrees, Vector3 offset) {

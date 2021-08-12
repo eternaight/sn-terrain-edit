@@ -5,7 +5,17 @@ using UnityEngine;
 namespace ReefEditor.VoxelTech {
     public class VoxelMetaspace : MonoBehaviour
     {
+        public static VoxelMetaspace metaspace;
         public VoxelMesh[] meshes;
+        public VoxelMesh this[Vector3Int index] {
+            get {
+                return meshes[GetLabel(index)];
+            }
+        }
+
+        void Awake() {
+            metaspace = this;
+        }
 
         public void Create(int numBatches) {
             meshes = new VoxelMesh[numBatches];
@@ -40,6 +50,20 @@ namespace ReefEditor.VoxelTech {
         public VoxelGrid GetVoxelGrid(Vector3Int globalBatchIndex, Vector3Int containerIndex) {
             return meshes[GetLabel(globalBatchIndex)].GetVoxelGrid(containerIndex);
         }
+        public byte[] GetVoxel(Vector3Int voxel, Vector3Int octree, Vector3Int batch) {
+            VoxelGrid grid = GetVoxelGrid(batch, octree);
+            return new byte[] { grid.densityGrid[voxel.x, voxel.y, voxel.z], grid.typeGrid[voxel.x, voxel.y, voxel.z] };
+        }
+
+        public void ApplyDensityAction(Brush.BrushStroke stroke) {
+
+            foreach(VoxelMesh mesh in meshes) {
+                Vector3 min = (mesh.batchIndex - VoxelWorld.start) * VoxelWorld.OCTREE_SIDE * VoxelWorld.CONTAINERS_PER_SIDE;
+                if (OctreeRaycasting.DistanceToBox(stroke.brushLocation, min, min + Vector3.one * VoxelWorld.OCTREE_SIDE * VoxelWorld.CONTAINERS_PER_SIDE) <= stroke.brushRadius) {
+                    mesh.ApplyDensityAction(stroke);
+                }
+            }
+        }
 
         public IEnumerator RegionReadCoroutine() {
             // sets + rasterizes all octrees
@@ -54,7 +78,7 @@ namespace ReefEditor.VoxelTech {
         void RegenerateMeshes() {
             // redistribute full grids
             foreach (VoxelMesh mesh in meshes) {
-                mesh.UpdateFullGrids(this);
+                mesh.UpdateFullGrids();
             }
             // generate meshes
             foreach (VoxelMesh mesh in meshes) {
