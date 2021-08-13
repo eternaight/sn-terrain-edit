@@ -131,7 +131,7 @@ namespace ReefEditor {
                 yield return StartCoroutine(BatchReadWriter.readWriter.WriteOctreePatchCoroutine(filename, metaspace));
             } else {
                 foreach (VoxelMesh batch in metaspace.meshes) {
-                    BatchReadWriter.readWriter.WriteOptoctrees(batch.batchIndex, batch.nodes);
+                    batch.Write();
                     yield return null;
                 }
             }

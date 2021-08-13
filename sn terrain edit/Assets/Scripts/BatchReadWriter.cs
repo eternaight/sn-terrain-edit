@@ -23,8 +23,12 @@ namespace ReefEditor {
 
             //Debug.Log("Reading "+ batchname);
 
-            Octree[,,] octrees = new Octree[5, 5, 5];
+            Vector3Int octreeDimensions = Vector3Int.one * VoxelWorld.CONTAINERS_PER_SIDE;
+            if (batchIndex.x == 25) octreeDimensions.x = 3;
+            if (batchIndex.z == 25) octreeDimensions.z = 3;
+            Octree[,,] octrees = new Octree[octreeDimensions.z, octreeDimensions.y, octreeDimensions.x];
             int countOctrees = 0;
+            int expectedOctrees = octreeDimensions.x * octreeDimensions.y * octreeDimensions.z;
 
             if (File.Exists(Globals.instance.batchSourcePath + batchname)) {
 
@@ -43,11 +47,11 @@ namespace ReefEditor {
                 }
 
                 curr_pos = 0;
-                while (curr_pos < data.Length) {
+                while (curr_pos < data.Length && countOctrees < expectedOctrees) {
                     
-                    int x = countOctrees / 25;
-                    int y = countOctrees % 25 / 5;
-                    int z = countOctrees % 5;
+                    int x = countOctrees / (octreeDimensions.z * octreeDimensions.y);
+                    int y = countOctrees % (octreeDimensions.z * octreeDimensions.y) / octreeDimensions.z;
+                    int z = countOctrees % octreeDimensions.z;
 
                     int nodeCount = data[curr_pos + 1] * 256 + data[curr_pos];
                     // record all nodes of this octree in an array

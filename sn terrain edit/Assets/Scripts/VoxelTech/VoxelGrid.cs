@@ -50,9 +50,9 @@ namespace ReefEditor.VoxelTech {
                         VoxelGrid neigGrid;
                         Vector3Int neigOffset = NeighbourOffsetFromVoxel(x, y, z);
                         Vector3Int neigOctreeIndex = octreeIndex + neigOffset;
-                        if (!OctreeExists(neigOctreeIndex)) {
+                        if (!VoxelMetaspace.OctreeExists(neigOctreeIndex, batchIndex)) {
                             Vector3Int neigBatchIndex = batchIndex + neigOffset;
-                            if (!BatchExists(neigBatchIndex)) {
+                            if (!VoxelMetaspace.BatchExists(neigBatchIndex)) {
                                 continue;
                             }
                             else {
@@ -83,28 +83,16 @@ namespace ReefEditor.VoxelTech {
             }
         }
 
-        static bool VoxelExists(int x, int y, int z) {
-            return x >= 0 && x < VoxelWorld.RESOLUTION + 2 && y >= 0 && y < VoxelWorld.RESOLUTION + 2 && z >= 0 && z < VoxelWorld.RESOLUTION + 2;
-        }
-        static bool OctreeExists(Vector3Int treeIndex) {
-            return (treeIndex.x >= 0 && treeIndex.x < VoxelWorld.CONTAINERS_PER_SIDE && treeIndex.y >= 0 && treeIndex.y < VoxelWorld.CONTAINERS_PER_SIDE && treeIndex.z >= 0 && treeIndex.z < VoxelWorld.CONTAINERS_PER_SIDE);
-        }
-        static bool BatchExists(Vector3Int batchIndex) {
-            return (batchIndex.x >= VoxelWorld.start.x && batchIndex.x <= VoxelWorld.end.x
-                && batchIndex.y >= VoxelWorld.start.y && batchIndex.y <= VoxelWorld.end.y 
-                && batchIndex.z >= VoxelWorld.start.z && batchIndex.z <= VoxelWorld.end.z);
-        }
-
         Vector3Int NeighbourOffsetFromVoxel(int x, int y, int z) {
             Vector3Int offset = Vector3Int.zero;
-            if (x == 0) offset.x = -1;
-            else if (x == VoxelWorld.RESOLUTION + 1) offset.x = 1;
+            if (x <= 0) offset.x = -1;
+            else if (x >= VoxelWorld.RESOLUTION + 1) offset.x = 1;
 
-            if (y == 0) offset.y = -1;
-            else if (y == VoxelWorld.RESOLUTION + 1) offset.y = 1;
+            if (y <= 0) offset.y = -1;
+            else if (y >= VoxelWorld.RESOLUTION + 1) offset.y = 1;
 
-            if (z == 0) offset.z = -1;
-            else if (z == VoxelWorld.RESOLUTION + 1) offset.z = 1;
+            if (z <= 0) offset.z = -1;
+            else if (z >= VoxelWorld.RESOLUTION + 1) offset.z = 1;
 
             return offset;
         }
@@ -114,19 +102,22 @@ namespace ReefEditor.VoxelTech {
             _fullTypeGrid =      Globals.CubeToLineArray(typeGrid);
         }
 
-        public void ApplyDensityFunction(Brush.BrushStroke stroke, Vector3 gridOrigin) {
+        public void Cache() {
             // cache densityGrid for blur function
-            if (stroke.brushMode == BrushMode.Smooth) {
-                int side = densityGrid.GetLength(0);
-                oldDensityGrid = new byte[side, side, side];
-                oldTypeGrid = new byte[side, side, side];
-                Array.Copy(densityGrid, oldDensityGrid, densityGrid.Length);
-                Array.Copy(typeGrid, oldTypeGrid, typeGrid.Length);
-            }
-            int fullSide = VoxelWorld.RESOLUTION + 2;
-            for (int z = 0; z < fullSide; z++) {
-                for (int y = 0; y < fullSide; y++) {
-                    for (int x = 0; x < fullSide; x++) {
+            int side = densityGrid.GetLength(0);
+            oldDensityGrid = new byte[side, side, side];
+            oldTypeGrid = new byte[side, side, side];
+            Array.Copy(densityGrid, oldDensityGrid, densityGrid.Length);
+            Array.Copy(typeGrid, oldTypeGrid, typeGrid.Length);
+        }
+        public byte[] GetCachedVoxel(int x, int y, int z) => new byte[] { oldDensityGrid[x, y, z], oldTypeGrid[x, y, z] };
+
+        public void ApplyDensityFunction(Brush.BrushStroke stroke, Vector3 gridOrigin) {
+            const int offset = 1;
+            int fullSide = VoxelWorld.RESOLUTION + 2 - offset;
+            for (int z = offset; z < fullSide; z++) {
+                for (int y = offset; y < fullSide; y++) {
+                    for (int x = offset; x < fullSide; x++) {
                         Vector3Int neigOffset = NeighbourOffsetFromVoxel(x, y, z);
                         if (neighbourMap[(neigOffset.x + 1) + (neigOffset.y + 1) * 3 + (neigOffset.z + 1) * 9]) {
                             ApplyGridAction(x, y, z, gridOrigin, stroke);
@@ -134,13 +125,8 @@ namespace ReefEditor.VoxelTech {
                     }
                 }
             }
-            if (stroke.brushMode == BrushMode.Smooth) {
-                Array.Clear(oldDensityGrid, 0, oldDensityGrid.Length);
-                Array.Clear(oldTypeGrid, 0, oldTypeGrid.Length);
-            }
         }
 
-#region Voxel Grid actions
         public void ApplyGridAction(int x, int y, int z, Vector3 gridOrigin, Brush.BrushStroke brushStroke) {
             switch (brushStroke.brushMode) {
                 case BrushMode.Add:
@@ -172,7 +158,7 @@ namespace ReefEditor.VoxelTech {
             // run with it
             bool solidChanged = (distanceValue >= 126) != (distanceValue + increment >= 126);
             distanceValue += increment;
-            
+
             // decode density back into normal storage format
             if (distanceValue >= 252 || distanceValue <= 0) {
                 // 'far' node
@@ -205,7 +191,7 @@ namespace ReefEditor.VoxelTech {
             byte encodedDensity = OctNodeData.EncodeDensity(clampedFunctionDensity);
 
             if (clampedFunctionDensity > 0) {
-                
+
                 float add = clampedFunctionDensity * stroke.GetWeight(new Vector3(x, y, z) + gridOrigin);
                 if (remove) add *= -1;
                 VoxelAdd(x, y, z, (int)add, (byte)Brush.selectedType);
@@ -223,14 +209,14 @@ namespace ReefEditor.VoxelTech {
             }
         }
         void DensityAction_Smooth(int x, int y, int z, Vector3 gridOrigin, Brush.BrushStroke stroke) {
-            
+
             // basically Gaussian blur
             // If voxel is outside the brush, skip it
             // offset sample position because full grid
             if (SampleDensity_Sphere(new Vector3(x - 1, y - 1, z - 1) + gridOrigin, stroke.brushLocation, stroke.brushRadius) < 0) {
                 return;
             }
-            
+
             const int blurRadius = 2;
             bool solidBefore = oldDensityGrid[x, y, z] >= 126;
             int sum = 0;
@@ -240,40 +226,29 @@ namespace ReefEditor.VoxelTech {
                 for (int j = y - blurRadius; j <= y + blurRadius; j++) {
                     for (int i = x - blurRadius; i <= x + blurRadius; i++) {
                         if (i != x || j != y || k != z) {
-                            if (!VoxelExists(i, j, k)) {
+
+                            Vector3Int voxel = new Vector3Int(i, j, k), octree = octreeIndex, batch = batchIndex;
+                            if (!VoxelMetaspace.VoxelExists(i, j, k)) {
                                 // its in another octree
                                 Vector3Int neigOffset = NeighbourOffsetFromVoxel(i, j, k);
-                                Vector3Int neigOctreeIndex = octreeIndex + neigOffset;
-                                Vector3Int voxelPositionShifted = new Vector3Int(i, j, k) + neigOffset * 2;
-                                if (!OctreeExists(neigOctreeIndex)) {
+                                voxel = IndexMod(new Vector3Int(i, j, k) + neigOffset * 2, VoxelWorld.RESOLUTION + 2);
+                                octree += neigOffset;
+                                if (!VoxelMetaspace.OctreeExists(octree, batchIndex)) {
                                     // its in another batch
-                                    Vector3Int neigBatchIndex = batchIndex + neigOffset;
-                                    if (!BatchExists(neigBatchIndex)) {
+                                    octree = IndexMod(octree, 5);
+                                    batch += neigOffset;
+                                    if (!VoxelMetaspace.BatchExists(batch)) {
                                         count--;
                                         continue;
-                                    } else {
-                                        // get voxel from neighbour VoxelMesh
-                                        byte[] voxel = VoxelMetaspace.metaspace.GetVoxel(IndexMod(voxelPositionShifted, VoxelWorld.RESOLUTION + 2), IndexMod(neigOctreeIndex, 5), neigBatchIndex);
-                                        if (voxel[0] == 0 && voxel[1] != 0) {
-                                            sum += 252;
-                                        } else {
-                                            sum += voxel[0];
-                                        }
-                                    }
-                                } else {
-                                    byte[] voxel = VoxelMetaspace.metaspace.GetVoxel(IndexMod(voxelPositionShifted, VoxelWorld.RESOLUTION + 2), neigOctreeIndex, batchIndex);
-                                    if (voxel[0] == 0 && voxel[1] != 0) {
-                                        sum += 252;
-                                    } else {
-                                        sum += voxel[0];
                                     }
                                 }
+                            }
+
+                            byte[] voxelData = VoxelMetaspace.metaspace.GetCachedVoxel(voxel, octree, batch);
+                            if (voxelData[0] == 0 && voxelData[1] != 0) {
+                                sum += 252;
                             } else {
-                                if (oldDensityGrid[i, j, k] == 0 && oldTypeGrid[i, j, k] != 0) {
-                                    sum += 252;
-                                } else {
-                                    sum += oldDensityGrid[i, j, k];
-                                }
+                                sum += voxelData[0];
                             }
                         }
                     }
@@ -294,7 +269,7 @@ namespace ReefEditor.VoxelTech {
             }
         }
         void DensityAction_Flatten(int x, int y, int z, Vector3 gridOrigin, Brush.BrushStroke stroke) {
-            
+
             // Make voxels solid below surface & inside brush
             // Make voxels empty above surface & inside brush
 
@@ -320,5 +295,4 @@ namespace ReefEditor.VoxelTech {
             }
         }
     }
-#endregion
 }
