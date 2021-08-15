@@ -4,13 +4,14 @@ using ReefEditor.VoxelTech;
 
 namespace ReefEditor {
     public class Brush : MonoBehaviour {
-        public static float brushSize = 0;
-        public static float minBrushSize = 1f;
-        public static float maxBrushSize = 64;
-        public static byte selectedType;
-        public static BrushMode mode;
+        public static float brushSize = 10;
+        public static float minBrushSize = 1;
+        public static float maxBrushSize = 32;
+        public static byte selectedType = 11;
+        public static float brushStrength = 0.5f;
+        public static BrushMode userSelectedMode = BrushMode.Add;
+        public static BrushMode activeMode { get; private set; }
         public static event Action OnParametersChanged;
-        public int brushStrength;
 
         BrushStroke stroke;
         const float brushActionPeriod = 1.0f;
@@ -19,12 +20,10 @@ namespace ReefEditor {
 
         void Start() {
             CreateBrushObject();
+            DisableBrushGizmo();
         }
         void OnDisable() {
             DisableBrushGizmo();
-        }
-        void OnRegionLoad() {
-            SetBrushMaterial(11);
         }
 
         void CreateBrushObject() {
@@ -32,6 +31,29 @@ namespace ReefEditor {
             brushAreaObject.GetComponent<MeshRenderer>().sharedMaterial = Globals.instance.brushGizmoMat;
             brushAreaObject.GetComponent<SphereCollider>().enabled = false;
             brushAreaObject.transform.localScale = Vector3.one * Brush.brushSize;
+        }
+
+        void Update() {
+            // apply modifiers
+            BrushMode _newActiveMode = userSelectedMode;
+            if (Input.GetKey(KeyCode.LeftShift)) {
+                // Always smooth
+                _newActiveMode = BrushMode.Smooth;
+            } else if (Input.GetKey(KeyCode.LeftControl)) {
+                // Complementary op
+                if (userSelectedMode == BrushMode.Add)
+                    _newActiveMode = BrushMode.Remove;
+                if (userSelectedMode == BrushMode.Paint)
+                    _newActiveMode = BrushMode.Eyedropper;
+                if (userSelectedMode == BrushMode.Remove)
+                    _newActiveMode = BrushMode.Add;
+                if (userSelectedMode == BrushMode.Eyedropper)
+                    _newActiveMode = BrushMode.Paint;
+            }
+            if (_newActiveMode != activeMode) {
+                activeMode = _newActiveMode;
+                OnParametersChanged();
+            }
         }
 
 
@@ -47,28 +69,13 @@ namespace ReefEditor {
                 if (doAction) {
                     VoxelMesh mesh = hit.collider.gameObject.GetComponentInParent<VoxelMesh>();
                     if (mesh) {
-                    
-                        // apply modifiers
-                        BrushMode actionMode = mode;
-                        if (Input.GetKey(KeyCode.LeftShift)) {
-                            // Always smooth
-                            actionMode = BrushMode.Smooth;
-                        }
-                        else if (Input.GetKey(KeyCode.LeftControl)) {
-                            // Complementary op
-                            if (mode == BrushMode.Add)
-                                actionMode = BrushMode.Remove;
-                            if (mode == BrushMode.Paint)
-                                actionMode = BrushMode.Eyedropper;
-                        }
-
-                        if (actionMode == BrushMode.Eyedropper) {
+                        if (activeMode == BrushMode.Eyedropper) {
                             SetBrushMaterial(VoxelWorld.SampleBlocktype(hit.point, ray));
                         } else {
                             if (stroke.ReadyForNextAction()) {
 
-                                if (stroke.strokeLength == 0) stroke.FirstStroke(hit.point, hit.normal, brushSize, brushStrength, actionMode);
-                                else stroke.ContinueStroke(hit.point, actionMode);
+                                if (stroke.strokeLength == 0) stroke.FirstStroke(hit.point, hit.normal, brushSize, brushStrength, activeMode);
+                                else stroke.ContinueStroke(hit.point, activeMode);
 
                                 VoxelMetaspace.metaspace.ApplyDensityAction(stroke);
                             }
@@ -87,10 +94,10 @@ namespace ReefEditor {
             brushAreaObject.SetActive(true);
             brushAreaObject.transform.position = position;
 
-            if (mode == BrushMode.Eyedropper) {
+            if (activeMode == BrushMode.Eyedropper) {
                 brushAreaObject.transform.localScale = Vector3.one * 2;
             } else {
-                brushAreaObject.transform.localScale = Vector3.one * 2 * Brush.brushSize;
+                brushAreaObject.transform.localScale = Vector3.one * 2 * brushSize;
             }
         }
         public void DisableBrushGizmo() {
@@ -99,17 +106,22 @@ namespace ReefEditor {
         }
 
         public static void SetBrushMaterial(byte value) {
-            Brush.selectedType = value;
-            Brush.OnParametersChanged?.Invoke();
+            selectedType = value;
+            OnParametersChanged?.Invoke();
         }
         public static void SetBrushSize(float t) {
-            brushSize = Mathf.Lerp(minBrushSize, maxBrushSize, t);
-            Brush.OnParametersChanged?.Invoke();
+            brushSize = t;
+            OnParametersChanged?.Invoke();
+        }
+        public static void SetBrushStrength(float t) {
+            brushStrength = t;
+            OnParametersChanged?.Invoke();
         }
         public static void SetBrushMode(int selection) {
-            mode = (BrushMode)selection;
-            Globals.instance.brushGizmoMat.color = Globals.instance.brushColors[selection];
-            Brush.OnParametersChanged?.Invoke();
+            userSelectedMode = (BrushMode)selection;
+            if (selection < Globals.instance.brushColors.Length)
+                Globals.instance.brushGizmoMat.color = Globals.instance.brushColors[selection];
+            OnParametersChanged?.Invoke();
         }
 
         public static void SetEnabled(bool enable) {
@@ -119,7 +131,7 @@ namespace ReefEditor {
         public struct BrushStroke {
             public Vector3 brushLocation;
             public float brushRadius;
-            int strength;
+            float strength;
             public BrushMode brushMode;
             public Vector3 firstStrokePoint;
             public Vector3 firstStrokeNormal;
@@ -127,7 +139,7 @@ namespace ReefEditor {
             float lastBrushTime;
 
             // Stroke frequency increases with more strokes
-            public void FirstStroke(Vector3 _position, Vector3 _normal, float _radius, int _strength, BrushMode _mode) {
+            public void FirstStroke(Vector3 _position, Vector3 _normal, float _radius, float _strength, BrushMode _mode) {
                 strokeLength = 1;
 
                 brushLocation = _position;
@@ -164,8 +176,7 @@ namespace ReefEditor {
             }
             public float GetWeight(Vector3 voxelPos) {
                 // float brushWeight = SmoothStep((brushLocation - voxelPos).magnitude, brushRadius * 0.7f, brushRadius);
-                float brushWeight = 1;
-                return brushWeight * strength;
+                return strength * 252;
             }
 
             public bool ReadyForNextAction() {
@@ -181,10 +192,10 @@ namespace ReefEditor {
     smooth available always with SHIFT */
     public enum BrushMode {
         Add,
+        Remove,
         Paint,
-        Flatten,
-        Remove = 10,
         Eyedropper,
-        Smooth = 100,
+        Flatten,
+        Smooth,
     }
 }

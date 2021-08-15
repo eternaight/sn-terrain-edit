@@ -27,6 +27,10 @@ public class UIButtonSelect : MonoBehaviour {
         UpdateButtons();
         OnSelectionChanged?.Invoke();
     }
+    public void SetSelectionFromBrushUpdate(int _selection) {
+        selection = _selection;
+        UpdateButtons();
+    }
     void UpdateButtons() {
         for (int i = 0; i < totalButtons; i++) {
             Image buttonImage = transform.GetChild(i).GetComponent<Image>();

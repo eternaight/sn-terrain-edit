@@ -11,6 +11,8 @@ namespace ReefEditor.ContentLoading {
         public event Action OnContentLoaded;
         public bool contentLoaded = false;
 
+        private static float lastFrame;
+
         void Awake() {
             instance = this;
         } 
@@ -67,7 +69,10 @@ namespace ReefEditor.ContentLoading {
                         materialAssets.Add(materialAsset);
                     }
 
-                    yield return null;
+                    if (Time.time - lastFrame >= 1.0f) {
+                        lastFrame = Time.time;
+                        yield return null;
+                    }
                 }
             }
 
@@ -76,14 +81,13 @@ namespace ReefEditor.ContentLoading {
 
         void LoadMaterialNames() {
             string combinedString = Resources.Load<TextAsset>("blocktypeStrings").text;
-            string[] lines = combinedString.Split(new[] {System.Environment.NewLine}, System.StringSplitOptions.None);
+            string[] lines = combinedString.Split(new[] {Environment.NewLine}, System.StringSplitOptions.None);
             blocktypesData = new BlocktypeMaterial[255];
             materialBlocktypes = new Dictionary<string, List<int>>();
 
             foreach (string line in lines) {
                 string[] split1 = line.Split(')');
-                int blocktype = 0;
-                int.TryParse(split1[0], out blocktype);
+                int.TryParse(split1[0], out int blocktype);
                 string materialName = split1[1].Substring(1);
                 
                 string nondecoName = materialName;
@@ -141,7 +145,10 @@ namespace ReefEditor.ContentLoading {
                         blocktypesData[b].SetTexture(textureType, textureAsset.m_PathID, newtexture);
                     }
                 }
-                yield return null;
+                if (Time.time - lastFrame >= 1.0f) {
+                    lastFrame = Time.time;
+                    yield return null;
+                }
             }
         }
 
@@ -158,7 +165,10 @@ namespace ReefEditor.ContentLoading {
                     }
                 }
 
-                yield return null;
+                if (Time.time - lastFrame >= 1.0f) {
+                    lastFrame = Time.time;
+                    yield return null;
+                }
             }
         }
 
@@ -255,14 +265,14 @@ namespace ReefEditor.ContentLoading {
                 mat = new Material(Globals.instance.batchCappedMat);
 
                 mat.SetTexture("_MainTex", textures[2]);
-                mat.SetTexture("_BumpMap", textures[0]);
+                mat.SetTexture("_NormalMap", textures[0]);
                 mat.SetTexture("_SideTex", textures[5]);
-                mat.SetTexture("_SideBumpMap", textures[3]);
+                mat.SetTexture("_SideNormalMap", textures[3]);
             } else {
                 mat = new Material(Globals.instance.batchMat);
 
                 mat.SetTexture("_MainTex", textures[1]);
-                mat.SetTexture("_BumpMap", textures[0]);
+                mat.SetTexture("_NormalMap", textures[0]);
             }
             
             mat.name = trueName;

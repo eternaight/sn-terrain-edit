@@ -31,9 +31,10 @@ namespace ReefEditor {
                 return end - start + Vector3Int.one;
             }
         }
+        public static bool aRegionIsLoaded = false;
+
 
         // private fields
-        bool aRegionIsLoaded = false;
         VoxelMetaspace metaspace;
 
         // events
@@ -99,10 +100,10 @@ namespace ReefEditor {
 
         public static void LoadRegion(Vector3Int _start, Vector3Int _end) {
             
-            if (world.aRegionIsLoaded) {
+            if (aRegionIsLoaded) {
                 world.metaspace.Clear();
             }
-            world.aRegionIsLoaded = true;
+            aRegionIsLoaded = true;
 
             Debug.Log($"Reading {_start} to {_end}");
             start = new Vector3Int(Math.Min(_start.x, _end.x), Math.Min(_start.y, _end.y), Math.Min(_start.z, _end.z));

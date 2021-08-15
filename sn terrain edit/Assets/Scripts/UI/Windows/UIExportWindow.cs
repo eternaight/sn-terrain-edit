@@ -65,9 +65,23 @@ namespace ReefEditor.UI {
                 OnModeChanged();
             }
 
-            // TODO: update file counts
+            SetFileCountStrings();
 
             base.EnableWindow();
+        }
+        private void SetFileCountStrings() {
+            if (!VoxelWorld.aRegionIsLoaded) {
+                transform.GetChild(2).GetChild(0).GetChild(2).GetChild(0).GetComponent<Text>().text = "No batches loaded";
+                transform.GetChild(2).GetChild(0).GetChild(2).GetChild(1).gameObject.SetActive(false);
+                return;
+            }
+
+            int batchCount = VoxelWorld.regionSize.x * VoxelWorld.regionSize.y * VoxelWorld.regionSize.z;
+            if (batchCount == 1)
+                transform.GetChild(2).GetChild(0).GetChild(2).GetChild(0).GetComponent<Text>().text = "1 file";
+            else
+                transform.GetChild(2).GetChild(0).GetChild(2).GetChild(0).GetComponent<Text>().text = $"{batchCount} files";
+            transform.GetChild(2).GetChild(0).GetChild(2).GetChild(1).gameObject.SetActive(true);
         }
         public override void DisableWindow()
         {

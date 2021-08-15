@@ -6,45 +6,69 @@ using UnityEngine.UI;
 namespace ReefEditor.UI {
     public class UIHybridInput : MonoBehaviour, IDragHandler, IPointerClickHandler {
 
-        float value;
+        public float LerpedValue {
+            get {
+                return Mathf.Lerp(minValue, maxValue, sliderValue);
+            }
+            set {
+                sliderValue = Mathf.InverseLerp(minValue, maxValue, value);
+            }
+        }
+        public float minValue = 0;
+        public float maxValue = 1;
+
+        public delegate string UIFormatFunction(float val);
+        public UIFormatFunction formatFunction;
+        
+        private float sliderValue;
         float realWidth;
         UIProgressBar bar;
         InputField field;
         RectTransform rectTf;
 
-        private void Start() {
-            bar = GetComponentInChildren<UIProgressBar>();
-            
-            field = GetComponentInChildren<InputField>();
-            field.enabled = false;
-            field.onEndEdit.AddListener(DisableInputField);
+        public event Action OnValueUpdated;
 
+        private void Awake() {
+            bar = GetComponentInChildren<UIProgressBar>();
+            field = GetComponentInChildren<InputField>();
             rectTf = transform as RectTransform;
-            
             realWidth = GetComponentInParent<Canvas>().scaleFactor * rectTf.rect.width;
-            Redraw();
+
+            field.onEndEdit.AddListener(DisableInputField);
+            OnValueUpdated += Redraw;
         }
- 
+        private void Start() {
+            field.enabled = false;
+        }
+
         public void OnDrag(PointerEventData eventData) {
             float barStart = transform.position.x - realWidth / 2;
-            value = Mathf.Clamp01((eventData.position.x - barStart) / realWidth);
-            Redraw();
+            sliderValue = Mathf.Clamp01((eventData.position.x - barStart) / realWidth);
+            OnValueUpdated();
         }
 
         public void OnPointerClick(PointerEventData eventData) {
-            field.enabled = true;
-            field.Select();
+            if (!eventData.dragging) {
+                field.enabled = true;
+                field.Select();
+            }
         }
 
-        private void DisableInputField(string val) {
-            float.TryParse(val, out value);
-            field.enabled = false;
+        public void SetValue(float lerpedVal) {
+            LerpedValue = lerpedVal;
             Redraw();
         }
 
+        private void DisableInputField(string val) {
+            if (float.TryParse(val, out float lerpedVal))
+                LerpedValue = lerpedVal;
+            field.enabled = false;
+            OnValueUpdated();
+        }
+
         private void Redraw() {
-            bar.SetFill(value);
-            field.SetTextWithoutNotify(Math.Round(value, 3).ToString());
+            bar.SetFill(sliderValue);
+            field.SetTextWithoutNotify(formatFunction(LerpedValue));
         }
     }
 }

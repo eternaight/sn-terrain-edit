@@ -6,7 +6,7 @@ namespace ReefEditor.UI {
         public void LoadBatch() {
 
             if (string.IsNullOrEmpty(Globals.instance.gamePath)) {
-                EditorUI.DisplayErrorMessage("Game path must be entered in the Settings window");
+                EditorUI.DisplayErrorMessage("Game path must be entered in \nthe Settings window");
                 return;
             }
 
@@ -27,7 +27,7 @@ namespace ReefEditor.UI {
             if (!endEntered) end = start;
 
             VoxelWorld.OnRegionLoaded += EditorUI.DisableStatusBar;
-            EditorUI.UpdateStatusBar($"Loading region from {start.x}-{start.y}-{start.z} to {end.x}-{end.y}-{end.z}", 0);
+            EditorUI.UpdateStatusBar($"Loading region from {start.x}-{start.y}-{start.z}\nto {end.x}-{end.y}-{end.z}", 0);
             VoxelWorld.LoadRegion(start, end);
         }
 

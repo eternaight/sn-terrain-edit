@@ -3,9 +3,6 @@
 namespace ReefEditor.UI {
     public class UIWindow : MonoBehaviour {
         bool windowActive = false;
-
-        public virtual void Start() {
-        }
         public virtual void DisableWindow() {
             windowActive = false;
             gameObject.SetActive(windowActive);
