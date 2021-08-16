@@ -64,7 +64,7 @@ namespace ReefEditor.Octrees {
         public void Rasterize(byte[] densityGrid, byte[] typeGrid, int side, int maxHeight) {
             node.RasterizeTree(densityGrid, typeGrid, side, node.position, 0, maxHeight);
         }
-        public void DeRasterizeGrid(byte[,,] densityGrid, byte[,,] typeGrid, int side, int maxHeight) {
+        public void DeRasterizeGrid(byte[] densityGrid, byte[] typeGrid, int side, int maxHeight) {
             node.DeRasterizeGrid(densityGrid, typeGrid, side, node.position, 0, maxHeight);
         }
 
@@ -248,7 +248,7 @@ namespace ReefEditor.Octrees {
                 }
             }
 
-            public void DeRasterizeGrid(byte[,,] densityGrid, byte[,,] typeGrid, int gridSide, Vector3 octreeOrigin, int height, int maxHeight) {
+            public void DeRasterizeGrid(byte[] densityGrid, byte[] typeGrid, int gridSide, Vector3 octreeOrigin, int height, int maxHeight) {
                 if (size > 1 && height < maxHeight) {
                     Subdivide();
 
@@ -263,8 +263,8 @@ namespace ReefEditor.Octrees {
                 else {
                     Vector3 localPos = position - octreeOrigin;
 
-                    byte type = typeGrid[(int)localPos.x + 1, (int)localPos.y + 1, (int)localPos.z + 1];
-                    byte signedDist = densityGrid[(int)localPos.x + 1, (int)localPos.y + 1, (int)localPos.z + 1];
+                    byte type = VoxelGrid.GetVoxel(typeGrid, (int)localPos.x + 1, (int)localPos.y + 1, (int)localPos.z + 1);
+                    byte signedDist = VoxelGrid.GetVoxel(densityGrid, (int)localPos.x + 1, (int)localPos.y + 1, (int)localPos.z + 1);
                     data = new OctNodeData(type, signedDist, 0);
                 }
             }

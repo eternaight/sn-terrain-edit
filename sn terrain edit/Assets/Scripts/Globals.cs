@@ -1,4 +1,5 @@
 using System.IO;
+using System.Linq;
 using UnityEngine;
 
 namespace ReefEditor {
@@ -12,16 +13,37 @@ namespace ReefEditor {
         public Material simpleMapMat;
         public Color[] brushColors;
         public string gamePath;
+        public bool belowzero;
         public string userBatchOutputPath;
 
         public string batchSourcePath {
             get {
-                return gamePath + gameToBatchPostfix;
+                return Path.Combine(gamePath, gameDataFolder, dataToUnmanaged, gameExportWindow, "CompiledOctreesCache");
             }
         }
         public string batchOutputPath {
             get {
-                return exportIntoGame ? gamePath + gameToBatchPostfix : userBatchOutputPath;
+                return exportIntoGame ? batchSourcePath : userBatchOutputPath;
+            }
+        }
+        public string gameDataFolder {
+            get {
+                return belowzero ? "SubnauticaZero_Data" : "Subnautica_Data";
+            }
+        }
+        public string gameExportWindow {
+            get {
+                return belowzero ? "Expansion" : "Build18";
+            }
+        }
+        public string resourcesSourcePath {
+            get {
+                return Path.Combine(gamePath, gameDataFolder);
+            }
+        }
+        public string blocktypeStringsFilename {
+            get {
+                return belowzero ? "blocktypeStringsBZ" : "blocktypeStrings";
             }
         }
         
@@ -29,28 +51,24 @@ namespace ReefEditor {
 
         public const string sourcePathKey = "gamePath";
         public const string outputPathKey = "outputPath";
-        public const string gameToBatchPostfix = "\\Subnautica_Data\\StreamingAssets\\SNUnmanagedData\\Build18\\CompiledOctreesCache";
-        public const string gameToAddressablesPostfix = "\\Subnautica_Data\\StreamingAssets\\aa\\StandaloneWindows64";
+        public const string dataToUnmanaged = "StreamingAssets\\SNUnmanagedData";
+        public const string dataToAddressables = "StreamingAssets\\aa\\StandaloneWindows64";
         public bool exportIntoGame;
-
-        int type = 0;
 
         void Awake() {
             instance = this;
         }
 
         public static Color ColorFromType(int type) {
-
             Random.InitState(type);
             return new Color(Random.value, Random.value, Random.value);
-
         }
 
         public static Material GetBatchMat() {
             return instance.batchMat;
         }
         public static void BakeSimpleMapMaterial() {
-            string filename = instance.gamePath + "\\Subnautica_Data\\StreamingAssets\\SNUnmanagedData\\Build18\\biomemap.png";
+            string filename = Path.Combine(instance.gamePath, instance.gameDataFolder, dataToUnmanaged, instance.gameExportWindow, "biomemap.png");
 
             if (File.Exists(filename)) {
                 byte[] fileData = File.ReadAllBytes(filename);
@@ -66,6 +84,8 @@ namespace ReefEditor {
 
         public static void SetGamePath(string path, bool save) {
             instance.gamePath = path;
+            string[] splitdirs = path.Split('\\');
+            instance.belowzero = splitdirs[splitdirs.Length - 1] == "SubnauticaZero";
             
             if (save)
                 SaveData.WriteKey(sourcePathKey, path);
@@ -82,38 +102,6 @@ namespace ReefEditor {
         }
         public static int LinearIndex(int x, int y, int z, Vector3Int dim) {
             return x + y * dim.x + z * dim.x * dim.y;
-        }
-        
-        public static T[] CubeToLineArray<T>(T[,,] array) {
-            Vector3Int size = new Vector3Int(array.GetLength(0), array.GetLength(1), array.GetLength(2));
-            T[] new_array = new T[size.x * size.y * size.z];
-
-            for (int k = 0; k < size.z; ++k) {
-                for (int j = 0; j < size.y; ++j) {
-                    for (int i = 0; i < size.x; ++i) {
-                        new_array[LinearIndex(i, j, k, size)] = array[i, j, k];
-                    }
-                }
-            }
-
-            return new_array;
-        }
-        public static T[,,] LineToCubeArray<T>(T[] array, Vector3Int size) {
-            T[,,] new_array = new T[size.x, size.y, size.z];
-
-            for (int k = 0; k < size.z; ++k) {
-                for (int j = 0; j < size.y; ++j) {
-                    for (int i = 0; i < size.x; ++i) {
-                        new_array[i, j, k] = array[LinearIndex(i, j, k, size)];
-                    }
-                }
-            }
-
-            return new_array;
-        }
-
-        public static void SetMatBlockType(byte blockType) {
-            Globals.instance.type = blockType;
         }
     }
 }

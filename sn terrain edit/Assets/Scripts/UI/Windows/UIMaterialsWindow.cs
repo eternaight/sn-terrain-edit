@@ -15,6 +15,11 @@ namespace ReefEditor.UI {
                 matIconPrefab = Resources.Load<GameObject>("UI Material Icon");
         }
 
+        public override void EnableWindow() {
+            base.EnableWindow();
+            transform.GetChild(1).GetChild(0).GetComponent<Text>().text = $"Load {(Globals.instance.belowzero ? "BZ" : "SN")} materials";
+        }
+
         public void LoadMaterials() {
             transform.GetChild(1).gameObject.SetActive(false);
             transform.GetChild(2).gameObject.SetActive(true);

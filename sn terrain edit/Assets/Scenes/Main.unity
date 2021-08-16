@@ -11188,6 +11188,7 @@ MonoBehaviour:
   - {r: 0.22880001, g: 0.38298914, b: 0.8, a: 0.4}
   - {r: 0.1422941, g: 0.708, b: 0.649, a: 0.4}
   gamePath: 
+  belowzero: 0
   userBatchOutputPath: 
   exportIntoGame: 0
 --- !u!114 &1700670801

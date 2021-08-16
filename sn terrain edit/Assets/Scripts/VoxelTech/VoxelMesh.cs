@@ -172,8 +172,7 @@ namespace ReefEditor.VoxelTech {
 
                 octree.Rasterize(tempDensities, tempTypes, _res, 5 - VoxelWorld.LEVEL_OF_DETAIL);
 
-                grid = new VoxelGrid(Globals.LineToCubeArray(tempDensities, Vector3Int.one * _res), 
-                                    Globals.LineToCubeArray(tempTypes, Vector3Int.one * _res), octreeIndex, batchIndex);
+                grid = new VoxelGrid(tempDensities, tempTypes, octreeIndex, batchIndex);
             } 
             
             public void CacheGrid() => grid.Cache();
@@ -219,7 +218,7 @@ namespace ReefEditor.VoxelTech {
                 int y = (int)localPoint.y;
                 int z = (int)localPoint.z;
 
-                return grid.typeGrid[x + 1, y + 1, z + 1];
+                return VoxelGrid.GetVoxel(grid.typeGrid, x + 1, y + 1, z + 1);
             }
         }
     }

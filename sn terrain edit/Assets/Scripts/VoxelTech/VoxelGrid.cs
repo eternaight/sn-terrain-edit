@@ -4,28 +4,29 @@ using UnityEngine;
 
 namespace ReefEditor.VoxelTech {
     public class VoxelGrid {
-        public byte[,,] densityGrid;
-        public byte[,,] typeGrid;
-        byte[,,] oldDensityGrid;
-        byte[,,] oldTypeGrid;
+        public byte[] densityGrid;
+        public byte[] typeGrid;
+        byte[] oldDensityGrid;
+        byte[] oldTypeGrid;
         public Vector3Int fullGridDim;
         public Vector3Int octreeIndex;
         public Vector3Int batchIndex;
         bool[] neighbourMap;
 
-        public VoxelGrid(byte[,,] _coreDensity, byte[,,] _coreTypes, Vector3Int _octreeIndex, Vector3Int _batchIndex) {
+        public VoxelGrid(byte[] _coreDensity, byte[] _coreTypes, Vector3Int _octreeIndex, Vector3Int _batchIndex) {
             
             int _fullSide = VoxelWorld.RESOLUTION + 2;
-            densityGrid = new byte[_fullSide, _fullSide, _fullSide];
-            typeGrid = new byte[_fullSide, _fullSide, _fullSide];;
+            int leng = _fullSide * _fullSide * _fullSide;
+            densityGrid = new byte[leng];
+            typeGrid = new byte[leng];
             
             const int so = 1;
 
             for (int z = 0; z < VoxelWorld.RESOLUTION; z++) {
                 for (int y = 0; y < VoxelWorld.RESOLUTION; y++) {
                     for (int x = 0; x < VoxelWorld.RESOLUTION; x++) {
-                        densityGrid[x + so, y + so, z + so] = _coreDensity[x, y, z];
-                        typeGrid[x + so, y + so, z + so] = _coreTypes[x, y, z];
+                        SetVoxel(densityGrid, x + so, y + so, z + so, GetCoreVoxel(_coreDensity, x, y, z));
+                        SetVoxel(typeGrid, x + so, y + so, z + so, GetCoreVoxel(_coreTypes, x, y, z));
                     }
                 }
             }
@@ -34,6 +35,16 @@ namespace ReefEditor.VoxelTech {
 
             octreeIndex = _octreeIndex;
             batchIndex = _batchIndex;
+        }
+
+        public static byte GetVoxel(byte[] array, int x, int y, int z) {
+            return array[Globals.LinearIndex(x, y, z, VoxelWorld.RESOLUTION + 2)];
+        }
+        public static void SetVoxel(byte[] array, int x, int y, int z, byte val) {
+            array[Globals.LinearIndex(x, y, z, VoxelWorld.RESOLUTION + 2)] = val;
+        }
+        public static byte GetCoreVoxel(byte[] array, int x, int y, int z) {
+            return array[Globals.LinearIndex(x, y, z, VoxelWorld.RESOLUTION)];
         }
 
         public void UpdateFullGrid() {
@@ -76,8 +87,8 @@ namespace ReefEditor.VoxelTech {
                         if (z == 0) sample.z = VoxelWorld.RESOLUTION;
                         else if (z == VoxelWorld.RESOLUTION + 1) sample.z = 1;
 
-                        densityGrid[x, y, z] =  neigGrid.densityGrid[sample.x, sample.y, sample.z];
-                        typeGrid[x, y, z] =     neigGrid.typeGrid[sample.x, sample.y, sample.z];
+                        SetVoxel(densityGrid, x, y, z, GetVoxel(neigGrid.densityGrid, sample.x, sample.y, sample.z));
+                        SetVoxel(typeGrid, x, y, z, GetVoxel(neigGrid.typeGrid, sample.x, sample.y, sample.z));
                     }
                 }
             }
@@ -98,19 +109,19 @@ namespace ReefEditor.VoxelTech {
         }
         Vector3Int IndexMod(Vector3Int octreeIndex, int mod) => new Vector3Int((octreeIndex.x + mod) % mod, (octreeIndex.y + mod) % mod, (octreeIndex.z + mod) % mod);
         public void GetFullGrids(out byte[] _fullDensityGrid, out byte[] _fullTypeGrid) {
-            _fullDensityGrid =   Globals.CubeToLineArray(densityGrid);
-            _fullTypeGrid =      Globals.CubeToLineArray(typeGrid);
+            _fullDensityGrid =   densityGrid;
+            _fullTypeGrid =      typeGrid;
         }
 
         public void Cache() {
             // cache densityGrid for blur function
             int side = densityGrid.GetLength(0);
-            oldDensityGrid = new byte[side, side, side];
-            oldTypeGrid = new byte[side, side, side];
+            oldDensityGrid = new byte[side * side * side];
+            oldTypeGrid = new byte[side * side * side];
             Array.Copy(densityGrid, oldDensityGrid, densityGrid.Length);
             Array.Copy(typeGrid, oldTypeGrid, typeGrid.Length);
         }
-        public byte[] GetCachedVoxel(int x, int y, int z) => new byte[] { oldDensityGrid[x, y, z], oldTypeGrid[x, y, z] };
+        public byte[] GetCachedVoxel(int x, int y, int z) => new byte[] { GetVoxel(oldDensityGrid, x, y, z), GetVoxel(oldTypeGrid, x, y, z) };
 
         public void ApplyDensityFunction(Brush.BrushStroke stroke, Vector3 gridOrigin) {
             const int offset = 1;
@@ -150,9 +161,9 @@ namespace ReefEditor.VoxelTech {
         }
         void VoxelAdd(int x, int y, int z, int increment, byte newSolidVoxelType) {
             // encode density into addition-friendly format
-            int distanceValue = densityGrid[x, y, z];
-            if (densityGrid[x, y, z] == 0) {
-                distanceValue = typeGrid[x, y, z] == 0 ? 0 : 252;
+            int distanceValue = GetVoxel(densityGrid, x, y, z);
+            if (distanceValue == 0) {
+                distanceValue = GetVoxel(typeGrid, x, y, z) == 0 ? 0 : 252;
             }
 
             // run with it
@@ -162,16 +173,16 @@ namespace ReefEditor.VoxelTech {
             // decode density back into normal storage format
             if (distanceValue >= 252 || distanceValue <= 0) {
                 // 'far' node
-                densityGrid[x, y, z] = 0;
+                SetVoxel(densityGrid, x, y, z, 0);
             } else {
-                densityGrid[x, y, z] = (byte)distanceValue;
+                SetVoxel(densityGrid, x, y, z, (byte)distanceValue);
             }
 
             if (solidChanged) {
                 if (distanceValue >= 126) {
-                    typeGrid[x, y, z] = newSolidVoxelType;
+                    SetVoxel(typeGrid, x, y, z, newSolidVoxelType);
                 } else {
-                    typeGrid[x, y, z] = 0;
+                    SetVoxel(typeGrid, x, y, z, 0);
                 }
             }
         }
@@ -204,8 +215,8 @@ namespace ReefEditor.VoxelTech {
             float functionDensity = SampleDensity_Sphere(new Vector3(x - 1, y - 1, z - 1) + gridOrigin, stroke.brushLocation, stroke.brushRadius);
             float clampedFunctionDensity = Mathf.Clamp(functionDensity, -1, 1);
 
-            if (functionDensity > 0 && densityGrid[x, y, z] > 126) {
-                typeGrid[x, y, z] = Brush.selectedType;
+            if (functionDensity > 0 && GetVoxel(densityGrid, x, y, z) > 126) {
+                SetVoxel(typeGrid, x, y, z, Brush.selectedType);
             }
         }
         void DensityAction_Smooth(int x, int y, int z, Vector3 gridOrigin, Brush.BrushStroke stroke) {
@@ -218,7 +229,7 @@ namespace ReefEditor.VoxelTech {
             }
 
             const int blurRadius = 2;
-            bool solidBefore = oldDensityGrid[x, y, z] >= 126;
+            bool solidBefore = GetVoxel(oldDensityGrid, x, y, z) >= 126;
             int sum = 0;
             int count = (int)Mathf.Pow((1 + blurRadius * 2), 3) - 1;
 
@@ -256,15 +267,15 @@ namespace ReefEditor.VoxelTech {
             }
 
             sum /= count;
-            densityGrid[x, y, z] = (byte)(sum);
+            SetVoxel(densityGrid, x, y, z, (byte)(sum));
 
             // update type as well
-            bool solidNow = densityGrid[x, y, z] >= 126;
+            bool solidNow = GetVoxel(densityGrid, x, y, z) >= 126;
             if (solidNow != solidBefore) {
                 if (solidNow) {
-                    typeGrid[x, y, z] = Brush.selectedType;
+                    SetVoxel(typeGrid, x, y, z, Brush.selectedType);
                 } else {
-                    typeGrid[x, y, z] = 0;
+                    SetVoxel(typeGrid, x, y, z, 0);
                 }
             }
         }
@@ -282,15 +293,15 @@ namespace ReefEditor.VoxelTech {
             // only affect voxels inside spherical brush
             if (sphereDensity > 0) {
                 if (planeDensity != clampedDensity) {
-                    densityGrid[x, y, z] = 0; // far node
+                    SetVoxel(densityGrid, x, y, z, 0); // far node
                 } else {
-                    densityGrid[x, y, z] = encodedDensity;
+                    SetVoxel(densityGrid, x, y, z, encodedDensity);
                 }
 
                 if (encodedDensity >= 126) {
-                    typeGrid[x, y, z] = Brush.selectedType;
+                    SetVoxel(typeGrid, x, y, z, Brush.selectedType);
                 } else {
-                    typeGrid[x, y, z] = 0; // solid node
+                    SetVoxel(typeGrid, x, y, z, 0); // solid node
                 }
             }
         }

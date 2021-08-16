@@ -76,9 +76,8 @@ namespace ReefEditor.ContentLoading {
         IEnumerator GetAssets(List<AssetStudio.Texture2D> textureAssets, List<AssetStudio.Material> materialAssets) {
 
             string bundleName = "\\resources.assets";
-            string resourcesPath = string.Concat(Globals.instance.gamePath, "\\Subnautica_Data", bundleName);
-            string[] files = new string[1];
-            files[0] = resourcesPath;
+            string resourcesPath = Globals.instance.resourcesSourcePath + bundleName;
+            string[] files = { resourcesPath };
 
             AssetStudio.AssetsManager assetManager = new AssetStudio.AssetsManager();
             assetManager.LoadFiles(files);
@@ -107,7 +106,7 @@ namespace ReefEditor.ContentLoading {
         }
 
         void LoadMaterialNames() {
-            string combinedString = Resources.Load<TextAsset>("blocktypeStrings").text;
+            string combinedString = Resources.Load<TextAsset>(Globals.instance.blocktypeStringsFilename).text;
             string[] lines = combinedString.Split(new[] {Environment.NewLine}, StringSplitOptions.None);
             blocktypesData = new BlocktypeMaterial[255];
             materialBlocktypes = new Dictionary<string, List<int>>();
@@ -288,7 +287,7 @@ namespace ReefEditor.ContentLoading {
 
         public Material MakeMaterial() {
             Material mat;
-            if (textures[3] != null) {
+            if (textures != null && textures[3] != null) {
                 mat = new Material(Globals.instance.batchCappedMat);
 
                 mat.SetTexture("_MainTex", textures[2]);
