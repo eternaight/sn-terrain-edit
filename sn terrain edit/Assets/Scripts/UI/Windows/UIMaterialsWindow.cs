@@ -57,7 +57,6 @@ namespace ReefEditor.UI {
             }
             ResizeContent();
             UpdateIconVisibility();
-            yield break;
         }
 
         bool IsIconVisible(RectTransform rectTf) {

@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.Rendering;
-using ReefEditor.VoxelTech;
 
 namespace ReefEditor {
     public class MeshBuilder : MonoBehaviour {
@@ -15,13 +14,6 @@ namespace ReefEditor {
         ComputeBuffer typeBuffer;
         ComputeBuffer faceBuffer; 
         ComputeBuffer triCountBuffer;
-
-        int[] faceIndices = new int[] { 0, 4, 3, 4, 7, 3,
-                                        3, 7, 2, 7, 6, 2,
-                                        1, 5, 0, 5, 4, 0, 
-                                        2, 6, 1, 6, 5, 1,
-                                        4, 6, 7, 4, 5, 6,
-                                        0, 2, 1, 0, 3, 2};
 
         public void Awake() {
             builder = this;
@@ -197,8 +189,9 @@ namespace ReefEditor {
                 mesh.SetSubMesh(k, new SubMeshDescriptor(submeshStart, countIndexes, MeshTopology.Quads));
                 nextStart += countIndexes;
             }
-            
+
             mesh.RecalculateNormals();
+            mesh.RecalculateTangents();
             return mesh;
         }
 
