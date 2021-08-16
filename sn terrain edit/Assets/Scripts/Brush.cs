@@ -19,8 +19,10 @@ namespace ReefEditor {
         GameObject brushAreaObject;
 
         void Start() {
-            CreateBrushObject();
-            DisableBrushGizmo();
+            if (brushAreaObject == null) {
+                CreateBrushObject();
+                DisableBrushGizmo();
+            }
         }
         void OnDisable() {
             DisableBrushGizmo();
@@ -30,7 +32,24 @@ namespace ReefEditor {
             brushAreaObject = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             brushAreaObject.GetComponent<MeshRenderer>().sharedMaterial = Globals.instance.brushGizmoMat;
             brushAreaObject.GetComponent<SphereCollider>().enabled = false;
-            brushAreaObject.transform.localScale = Vector3.one * Brush.brushSize;
+            brushAreaObject.transform.localScale = Vector3.one * brushSize;
+
+            GameObject lightObj = new GameObject("brushLight");
+            lightObj.transform.SetParent(brushAreaObject.transform);
+            lightObj.transform.localScale = Vector3.one;
+            Light light = lightObj.AddComponent<Light>();
+            light.enabled = false;
+            light.intensity = Mathf.Clamp(Mathf.Sqrt(brushSize), 1, 12);
+            light.range = 2 * brushSize;
+        }
+
+        public static Light GetBrushLight() {
+            Brush brush = FindObjectOfType<Brush>();
+            if (brush.brushAreaObject == null) {
+                brush.CreateBrushObject();
+                brush.DisableBrushGizmo();
+            }
+            return brush.brushAreaObject.GetComponentInChildren<Light>();
         }
 
         void Update() {
@@ -65,7 +84,7 @@ namespace ReefEditor {
             Physics.Raycast(ray, out hit, Mathf.Infinity, 1);
 
             if (hit.collider) {
-                DrawBrushGizmo(hit.point);
+                DrawBrushGizmo(hit.point, hit.normal);
                 if (doAction) {
                     VoxelMesh mesh = hit.collider.gameObject.GetComponentInParent<VoxelMesh>();
                     if (mesh) {
@@ -89,10 +108,11 @@ namespace ReefEditor {
             }
             
         }
-        public void DrawBrushGizmo(Vector3 position) {
+        public void DrawBrushGizmo(Vector3 position, Vector3 normal) {
 
             brushAreaObject.SetActive(true);
             brushAreaObject.transform.position = position;
+            brushAreaObject.transform.GetChild(0).position = position + normal * 2;
 
             if (activeMode == BrushMode.Eyedropper) {
                 brushAreaObject.transform.localScale = Vector3.one * 2;
@@ -104,6 +124,9 @@ namespace ReefEditor {
             if (brushAreaObject)
                 brushAreaObject.SetActive(false);
         }
+        public GameObject GetBrushObject() {
+            return brushAreaObject;
+        }
 
         public static void SetBrushMaterial(byte value) {
             selectedType = value;
@@ -111,6 +134,9 @@ namespace ReefEditor {
         }
         public static void SetBrushSize(float t) {
             brushSize = t;
+            Light light = Camera.main.GetComponent<Brush>().brushAreaObject.GetComponentInChildren<Light>();
+            light.intensity = Mathf.Clamp(Mathf.Sqrt(brushSize), 1, 12); ;
+            light.range = 2 * brushSize;
             OnParametersChanged?.Invoke();
         }
         public static void SetBrushStrength(float t) {
