@@ -14,6 +14,11 @@ namespace ReefEditor.VoxelTech {
             }
         }
 
+        // loading fields
+        public bool loadInProgress = false;
+        public float loadingProgress;
+        public string loadingState;
+
         void Awake() {
             metaspace = this;
         }
@@ -22,7 +27,7 @@ namespace ReefEditor.VoxelTech {
             meshes = new VoxelMesh[numBatches];
 
             if (!SNContentLoader.instance.contentLoaded) {
-                SNContentLoader.instance.OnContentLoaded += RegenerateMeshes;
+                SNContentLoader.instance.updateMeshesOnLoad = true;
             }
 
             for (int y = VoxelWorld.start.y; y <= VoxelWorld.end.y; y++) {
@@ -79,27 +84,34 @@ namespace ReefEditor.VoxelTech {
 
         public IEnumerator RegionReadCoroutine() {
             // sets + rasterizes all octrees
+            loadInProgress = true;
+            float endLabel = GetLabel(VoxelWorld.end) + 1;
             foreach (VoxelMesh mesh in meshes) {
+                loadingProgress = GetLabel(mesh.batchIndex) / (endLabel * 3);
+                loadingState = $"Reading batch {mesh.batchIndex}";
                 yield return BatchReadWriter.readWriter.ReadBatchCoroutine(mesh.OctreesReadCallback, mesh.batchIndex);
             }
 
-            RegenerateMeshes();
-            yield break;
+            yield return RegenerateMeshesCoroutine(1, 3);
+            loadInProgress = false;
         }
 
-        void RegenerateMeshes() {
+        public IEnumerator RegenerateMeshesCoroutine(int tasksDone, int totalTasks) {
             // redistribute full grids
+            float endLabel = GetLabel(VoxelWorld.end) + 1;
             foreach (VoxelMesh mesh in meshes) {
+                loadingProgress = (GetLabel(mesh.batchIndex) / (endLabel * totalTasks)) + ((float)tasksDone) / totalTasks;
+                loadingState = $"Joining batch {mesh.batchIndex}";
                 mesh.UpdateFullGrids();
+                yield return null;
             }
             // generate meshes
             foreach (VoxelMesh mesh in meshes) {
+                loadingProgress = (GetLabel(mesh.batchIndex) / (endLabel * totalTasks)) + ((float)tasksDone + 1) / totalTasks;
+                loadingState = $"Creating mesh for {mesh.batchIndex}";
                 mesh.Regenerate();
+                yield return null;
             }
-        }
-
-        void DerasterizeOctrees() {
-            // read voxels -> octrees
         }
 
         public static bool VoxelExists(int x, int y, int z) {

@@ -7,7 +7,7 @@ namespace ReefEditor {
     public class VoxelWorld : MonoBehaviour {
         // constants
         // LOD. 0-5 lod => 32-1 resolution
-        public static int LEVEL_OF_DETAIL { get; private set; } 
+        public static int LEVEL_OF_DETAIL { get; private set; }
         // this defines the in-game size of the meshes
         public const int OCTREE_SIDE = 32;
         // this is the 'resolution' but for batches
@@ -33,6 +33,23 @@ namespace ReefEditor {
         }
         public static bool aRegionIsLoaded = false;
 
+
+        // loading fields
+        public static bool loadInProgress {
+            get {
+                return VoxelMetaspace.metaspace.loadInProgress;
+            }
+        }
+        public static float loadingProgress {
+            get {
+                return VoxelMetaspace.metaspace.loadingProgress;
+            }
+        }
+        public static string loadingState {
+            get {
+                return VoxelMetaspace.metaspace.loadingState;
+            }
+        }
 
         // private fields
         VoxelMetaspace metaspace;
@@ -121,7 +138,6 @@ namespace ReefEditor {
 
             OnRegionLoaded?.Invoke();
             Camera.main.gameObject.SendMessage("OnRegionLoad");
-            yield break;
         }
 
         public static void ExportRegion(bool doPatch, string filename = "terrainPatch") {
@@ -169,5 +185,7 @@ namespace ReefEditor {
             const int batchSide = OCTREE_SIDE * CONTAINERS_PER_SIDE;
             return new Vector3Int(Mathf.FloorToInt(p.x / batchSide), Mathf.FloorToInt(p.z / batchSide) * regionSize.x, Mathf.FloorToInt(p.y / batchSide) * regionSize.x * regionSize.z);
         }
+
+        public static void StartMetaspaceRegenerate(int tasksDone, int tasksTotal) => world.StartCoroutine(VoxelMetaspace.metaspace.RegenerateMeshesCoroutine(tasksDone, tasksTotal));
     }
 }

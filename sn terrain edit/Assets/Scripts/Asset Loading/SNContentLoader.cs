@@ -8,9 +8,11 @@ namespace ReefEditor.ContentLoading {
         public static SNContentLoader instance;
         public BlocktypeMaterial[] blocktypesData;
         Dictionary<string, List<int>> materialBlocktypes;
-        public event Action OnContentLoaded;
         public bool contentLoaded = false;
         public bool busyLoading = false;
+
+        // TODO: remove later and rework into some loader task system
+        public bool updateMeshesOnLoad;
 
         private static float lastFrame;
 
@@ -26,6 +28,8 @@ namespace ReefEditor.ContentLoading {
             busyLoading = true;
             loadState = "Loading material names";
             loadProgress = 0;
+            int totalTasks = 12;
+            if (updateMeshesOnLoad) totalTasks += 3;
 
             System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
             sw.Start();
@@ -33,7 +37,7 @@ namespace ReefEditor.ContentLoading {
             sw.Stop();
 
             Debug.Log($"Loaded material names in {sw.ElapsedMilliseconds}ms");
-            loadProgress = 0.05f;
+            loadProgress = 1f / totalTasks;
             loadState = "Getting assets";
             yield return null;
 
@@ -44,22 +48,29 @@ namespace ReefEditor.ContentLoading {
             sw.Stop();
 
             Debug.Log($"Got assets in {sw.ElapsedMilliseconds}ms");
-            loadProgress = .4f;
+            loadProgress = 4f / totalTasks;
             loadState = "Setting materials";
             yield return null;
         
             sw.Restart();
             yield return StartCoroutine(SetMaterials(materialAssets.ToArray()));
-            loadProgress = .7f;
+            loadProgress = 8f / totalTasks;
             loadState = "Setting textures";
             yield return StartCoroutine(SetTextures(textureAssets.ToArray()));
             sw.Stop();
             Debug.Log($"Set assets in {sw.ElapsedMilliseconds}ms");
+            
+            if (updateMeshesOnLoad) {
+                VoxelWorld.StartMetaspaceRegenerate(12, totalTasks);
+                while (VoxelWorld.loadInProgress) {
+                    loadProgress = VoxelWorld.loadingProgress;
+                    loadState = VoxelWorld.loadingState;
+                    yield return null;
+                }
+            }
 
             contentLoaded = true;
             busyLoading = false;
-            if (OnContentLoaded != null)
-                OnContentLoaded();
         }
 
         IEnumerator GetAssets(List<AssetStudio.Texture2D> textureAssets, List<AssetStudio.Material> materialAssets) {

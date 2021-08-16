@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System.Collections;
+using UnityEngine;
 using UnityEngine.UI;
 
 namespace ReefEditor.UI {
@@ -6,7 +7,7 @@ namespace ReefEditor.UI {
         public void LoadBatch() {
 
             if (string.IsNullOrEmpty(Globals.instance.gamePath)) {
-                EditorUI.DisplayErrorMessage("Game path must be entered in \nthe Settings window");
+                EditorUI.DisplayErrorMessage("Game path must be entered in\nthe Settings window");
                 return;
             }
 
@@ -26,9 +27,17 @@ namespace ReefEditor.UI {
             if (!startEntered) start = end; 
             if (!endEntered) end = start;
 
-            VoxelWorld.OnRegionLoaded += EditorUI.DisableStatusBar;
-            EditorUI.UpdateStatusBar($"Loading region from {start.x}-{start.y}-{start.z}\nto {end.x}-{end.y}-{end.z}", 0);
+            EditorUI.inst.StartCoroutine(LoadCoroutine(start, end));
+            base.DisableWindow();
+        }
+
+        IEnumerator LoadCoroutine(Vector3Int start, Vector3Int end) {
             VoxelWorld.LoadRegion(start, end);
+            while (VoxelWorld.loadInProgress) {
+                EditorUI.UpdateStatusBar(VoxelWorld.loadingState, VoxelWorld.loadingProgress);
+                yield return null;
+            }
+            EditorUI.DisableStatusBar();
         }
 
         private bool TryParseBatchString(string s, out Vector3Int index) {
@@ -45,7 +54,7 @@ namespace ReefEditor.UI {
                 return true;
             }
             
-            return false;;
+            return false;
         }
     }
 }
