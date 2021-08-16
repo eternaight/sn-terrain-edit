@@ -10,8 +10,12 @@ namespace ReefEditor.ContentLoading {
         Dictionary<string, List<int>> materialBlocktypes;
         public event Action OnContentLoaded;
         public bool contentLoaded = false;
+        public bool busyLoading = false;
 
         private static float lastFrame;
+
+        public float loadProgress;
+        public string loadState;
 
         void Awake() {
             instance = this;
@@ -19,29 +23,41 @@ namespace ReefEditor.ContentLoading {
 
         public IEnumerator LoadContent() {
 
+            busyLoading = true;
+            loadState = "Loading material names";
+            loadProgress = 0;
+
             System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
             sw.Start();
             LoadMaterialNames();
             sw.Stop();
+
             Debug.Log($"Loaded material names in {sw.ElapsedMilliseconds}ms");
+            loadProgress = 0.05f;
+            loadState = "Getting assets";
             yield return null;
 
             sw.Restart();
-
             List<AssetStudio.Texture2D> textureAssets = new List<AssetStudio.Texture2D>();
             List<AssetStudio.Material> materialAssets = new List<AssetStudio.Material>();
             yield return StartCoroutine(GetAssets(textureAssets, materialAssets));
             sw.Stop();
+
             Debug.Log($"Got assets in {sw.ElapsedMilliseconds}ms");
+            loadProgress = .4f;
+            loadState = "Setting materials";
             yield return null;
         
             sw.Restart();
             yield return StartCoroutine(SetMaterials(materialAssets.ToArray()));
+            loadProgress = .7f;
+            loadState = "Setting textures";
             yield return StartCoroutine(SetTextures(textureAssets.ToArray()));
             sw.Stop();
             Debug.Log($"Set assets in {sw.ElapsedMilliseconds}ms");
 
             contentLoaded = true;
+            busyLoading = false;
             if (OnContentLoaded != null)
                 OnContentLoaded();
         }
@@ -81,7 +97,7 @@ namespace ReefEditor.ContentLoading {
 
         void LoadMaterialNames() {
             string combinedString = Resources.Load<TextAsset>("blocktypeStrings").text;
-            string[] lines = combinedString.Split(new[] {Environment.NewLine}, System.StringSplitOptions.None);
+            string[] lines = combinedString.Split(new[] {Environment.NewLine}, StringSplitOptions.None);
             blocktypesData = new BlocktypeMaterial[255];
             materialBlocktypes = new Dictionary<string, List<int>>();
 

@@ -41,7 +41,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MainTex:
-        m_Texture: {fileID: 10305, guid: 0000000000000000f000000000000000, type: 0}
+        m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MetallicGlossMap:
@@ -49,7 +49,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _NormalMap:
-        m_Texture: {fileID: 2800000, guid: bdc852494269a77489fecef668341747, type: 3}
+        m_Texture: {fileID: 2800000, guid: c5c4454433f2a9a488d33d49f677cafd, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _OcclusionMap:
@@ -65,16 +65,18 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _SideNormalMap:
-        m_Texture: {fileID: 2800000, guid: 765c43f527548f049a4f0d5257b0885d, type: 3}
+        m_Texture: {fileID: 2800000, guid: c5c4454433f2a9a488d33d49f677cafd, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _SideTex:
-        m_Texture: {fileID: 10309, guid: 0000000000000000f000000000000000, type: 0}
+        m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     m_Floats:
-    - Sharpness: -0.5
-    - Tile: 0.25
+    - Sharpness: 1
+    - Tile: 0.5
+    - Vector1_4ABC9D86: 0
+    - Vector1_CB2D404: 0
     - _BlendSharpness: 1
     - _BumpScale: 1
     - _Cutoff: 0.5

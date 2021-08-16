@@ -10,8 +10,7 @@ namespace ReefEditor.UI {
         bool materialsLoaded = false;
         List<UIBlocktypeIconDisplay> icons;
 
-        public override void EnableWindow() {
-            base.EnableWindow();
+        void Start() {
             if (matIconPrefab == null)
                 matIconPrefab = Resources.Load<GameObject>("UI Material Icon");
         }
@@ -37,11 +36,14 @@ namespace ReefEditor.UI {
         }
 
         IEnumerator DisplayMaterialIcons() {
-
-            // TODO: Add separate notifs for loading materials / loading textures / mounting textures //
-            EditorUI.UpdateStatusBar("Loading SN materials", 0);
             materialsLoaded = true;
-            yield return StartCoroutine(SNContentLoader.instance.LoadContent());
+
+            Coroutine matLoadCoroutine = StartCoroutine(SNContentLoader.instance.LoadContent());
+            while(SNContentLoader.instance.busyLoading) {
+                EditorUI.UpdateStatusBar(SNContentLoader.instance.loadState, SNContentLoader.instance.loadProgress);
+                yield return null;
+            }
+
             EditorUI.DisableStatusBar();
 
             icons = new List<UIBlocktypeIconDisplay>();
@@ -55,6 +57,7 @@ namespace ReefEditor.UI {
             }
             ResizeContent();
             UpdateIconVisibility();
+            yield break;
         }
 
         bool IsIconVisible(RectTransform rectTf) {
@@ -67,26 +70,26 @@ namespace ReefEditor.UI {
             BlocktypeMaterial mat;
             bool isVisible = false;
 
-            public UIBlocktypeIconDisplay(GameObject instance, BlocktypeMaterial mat) {
-                this.gameObject = instance;
-                this.mat = mat;
+            public UIBlocktypeIconDisplay(GameObject _gameObject, BlocktypeMaterial _mat) {
+                gameObject = _gameObject;
+                mat = _mat;
 
                 string materialName = mat.trueName;
                 if (materialName.Contains("deco")) {
                     materialName = string.Concat(materialName.Split(' ')[0], "-deco");
                 }
 
-                string title = $"{mat.blocktype.ToString()}) {materialName}";
+                string title = $"{mat.blocktype}) {materialName}";
                 gameObject.GetComponentInChildren<Text>().text = title;
 
-                instance.GetComponent<Button>().onClick.AddListener(OnMaterialSelected);
+                gameObject.GetComponent<Button>().onClick.AddListener(OnMaterialSelected);
             }    
 
             public void UpdateVisibility(bool newVisible) {
 
-                bool changed = newVisible != this.isVisible;
+                bool changed = newVisible != isVisible;
                 if (!changed) return;
-                this.isVisible = newVisible;
+                isVisible = newVisible;
 
                 if (isVisible) {
                     if (mat.MainTexture != null) {

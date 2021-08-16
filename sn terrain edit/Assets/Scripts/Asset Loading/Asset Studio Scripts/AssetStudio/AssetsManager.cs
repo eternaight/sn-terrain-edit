@@ -250,6 +250,18 @@ namespace AssetStudio
                     try
                     {
                         Object obj;
+                        switch (objectReader.type) {
+                            case ClassIDType.Material:
+                                obj = new Material(objectReader);
+                                break;
+                            case ClassIDType.Texture2D:
+                                obj = new Texture2D(objectReader);
+                                break;
+                            default:
+                                obj = null;
+                                break;
+                        }
+                        /*
                         switch (objectReader.type)
                         {
                             case ClassIDType.Animation:
@@ -339,8 +351,9 @@ namespace AssetStudio
                             default:
                                 obj = new Object(objectReader);
                                 break;
-                        }
-                        assetsFile.AddObject(obj);
+                        } */
+                        if (!(obj is null))
+                            assetsFile.AddObject(obj);
                     }
                     catch (Exception e)
                     {
