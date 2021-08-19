@@ -27,6 +27,7 @@ namespace ReefEditor.UI {
                 Destroy(inst.statusBar.parent.GetChild(1).gameObject);
             }
             GameObject go = Instantiate(inst.errorPrefab, inst.statusBar.parent);
+            go.transform.GetComponentInChildren<Text>().text = message;
             go.transform.SetAsLastSibling();
         }
     }

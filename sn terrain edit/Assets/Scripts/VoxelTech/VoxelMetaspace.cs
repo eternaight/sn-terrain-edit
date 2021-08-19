@@ -118,6 +118,7 @@ namespace ReefEditor.VoxelTech {
             return x >= 1 && x < VoxelWorld.RESOLUTION + 1 && y >= 1 && y < VoxelWorld.RESOLUTION + 1 && z >= 1 && z < VoxelWorld.RESOLUTION + 1;
         }
         public static bool OctreeExists(Vector3Int treeIndex, Vector3Int batchIndex) {
+            if (!BatchExists(batchIndex)) return false;
             Vector3Int dimensions = metaspace[batchIndex].octreeCounts;
             return (treeIndex.x >= 0 && treeIndex.x < dimensions.x && treeIndex.y >= 0 && treeIndex.y < dimensions.y && treeIndex.z >= 0 && treeIndex.z < dimensions.z);
         }

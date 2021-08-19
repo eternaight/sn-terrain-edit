@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
@@ -238,11 +238,11 @@ namespace ReefEditor {
             busy = false;
             return true;
         }
-
+        
         public IEnumerator WriteOctreePatchCoroutine(string filename, VoxelMetaspace metaspace) {
             string batchname = string.Format("\\{0}.optoctreepatch", filename);
-            busy = true;
             
+            busy = true;
             Debug.Log($"Writing {metaspace.meshes.Length} batch patches to {Globals.instance.batchOutputPath}");
 
             BinaryWriter writer = new BinaryWriter(File.Open(Globals.instance.batchOutputPath + batchname, FileMode.OpenOrCreate));

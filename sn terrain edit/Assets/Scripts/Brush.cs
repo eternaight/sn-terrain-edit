@@ -86,23 +86,22 @@ namespace ReefEditor {
             if (hit.collider) {
                 DrawBrushGizmo(hit.point, hit.normal);
                 if (doAction) {
-                    VoxelMesh mesh = hit.collider.gameObject.GetComponentInParent<VoxelMesh>();
-                    if (mesh) {
-                        if (activeMode == BrushMode.Eyedropper) {
-                            SetBrushMaterial(VoxelWorld.SampleBlocktype(hit.point, ray));
-                        } else {
-                            if (stroke.ReadyForNextAction()) {
+                    if (activeMode == BrushMode.Eyedropper) {
+                        SetBrushMaterial(VoxelWorld.SampleBlocktype(hit.point, ray));
+                    } else {
+                        if (stroke.ReadyForNextAction()) {
 
-                                if (stroke.strokeLength == 0) stroke.FirstStroke(hit.point, hit.normal, brushSize, brushStrength, activeMode);
-                                else stroke.ContinueStroke(hit.point, activeMode);
+                            if (stroke.strokeLength == 0) stroke.FirstStroke(hit.point, hit.normal, brushSize, brushStrength, activeMode);
+                            else stroke.ContinueStroke(hit.point, activeMode);
 
-                                VoxelMetaspace.metaspace.ApplyDensityAction(stroke);
-                            }
+                            VoxelMetaspace.metaspace.ApplyDensityAction(stroke);
                         }
                     }
                 } else {
                     stroke.EndStroke();
                 }
+                // TODO: flip dependencies - Globals should reference Brush
+                Globals.UpdateBoundaries(hit.point, brushSize + 2);
             } else {
                 DisableBrushGizmo();
             }
@@ -123,6 +122,7 @@ namespace ReefEditor {
         public void DisableBrushGizmo() {
             if (brushAreaObject)
                 brushAreaObject.SetActive(false);
+            Globals.UpdateBoundaries(Vector3.zero, 0);
         }
         public GameObject GetBrushObject() {
             return brushAreaObject;

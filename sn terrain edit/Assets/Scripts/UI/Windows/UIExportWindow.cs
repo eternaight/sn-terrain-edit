@@ -8,6 +8,7 @@ namespace ReefEditor.UI {
 
         GameObject checkboxGroup => transform.GetChild(2).GetChild(1).gameObject;
         GameObject folderInputGroup => transform.GetChild(2).GetChild(2).gameObject;
+        GameObject filenameInputGroup => transform.GetChild(2).GetChild(3).gameObject;
 
         public void Export() {
 
@@ -15,10 +16,23 @@ namespace ReefEditor.UI {
                 EditorUI.DisplayErrorMessage("No output path set.");
                 return;
             }
+            if (!VoxelWorld.aRegionIsLoaded) {
+                EditorUI.DisplayErrorMessage("Nothing to export!");
+                return;
+            }
+
+            TryExportFileWithName(filenameInputGroup.GetComponentInChildren<InputField>().text);
+        }
+        private void TryExportFileWithName(string name, int attempt = 0) {
+            string filename = Globals.instance.batchOutputPath + "//" + name + (attempt == 0 ? "" : $"({attempt})") + (modeSelection.selection == 1 ? ".optoctreepatch" : ".optoctrees");
+            while (System.IO.File.Exists(filename)) {
+                attempt++;
+                filename = Globals.instance.batchOutputPath + "//" + name + (attempt == 0 ? "" : $"({attempt})") + (modeSelection.selection == 1 ? ".optoctreepatch" : ".optoctrees");
+            }
 
             VoxelWorld.OnRegionLoaded += EditorUI.DisableStatusBar;
             EditorUI.UpdateStatusBar("Exporting...", 1);
-            VoxelWorld.ExportRegion(modeSelection.selection == 1);
+            VoxelWorld.ExportRegion(modeSelection.selection == 1, name + (attempt == 0 ? "" : $"({attempt})"));
         }
 
         public void SetExportPath() {
@@ -43,9 +57,11 @@ namespace ReefEditor.UI {
             if (modeSelection.selection == 1) {
                 checkboxGroup.SetActive(false);
                 folderInputGroup.SetActive(true);
+                filenameInputGroup.SetActive(true);
                 Globals.instance.exportIntoGame = false;
             } else {
                 checkboxGroup.SetActive(true);
+                filenameInputGroup.SetActive(false);
                 OnCheckboxInteract();
             }
         }

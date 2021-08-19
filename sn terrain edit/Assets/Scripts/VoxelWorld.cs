@@ -137,6 +137,7 @@ namespace ReefEditor {
             yield return StartCoroutine(metaspace.RegionReadCoroutine());
 
             OnRegionLoaded?.Invoke();
+            Globals.RedrawBoundaryPlanes();
             Camera.main.gameObject.SendMessage("OnRegionLoad");
         }
 
@@ -162,6 +163,11 @@ namespace ReefEditor {
 
             // batch
             Vector3Int batchOffset = LocalBatchFromPoint(hitPoint);
+            if (VoxelMetaspace.BatchExists(batchOffset + start)) {
+                float newDistance = Vector3.Distance(hitPoint, cameraRay.origin) + .5f;
+                Vector3 newPoint = cameraRay.GetPoint(newDistance);
+                return SampleBlocktype(newPoint, cameraRay, retryCount + 1);
+            }
             VoxelMesh batch = world.metaspace[batchOffset + start];
 
             Vector3 _local = hitPoint - batchOffset * OCTREE_SIDE * CONTAINERS_PER_SIDE; 
@@ -174,7 +180,6 @@ namespace ReefEditor {
             if (type == 0) {
                 float newDistance = Vector3.Distance(hitPoint, cameraRay.origin) + .5f;
                 Vector3 newPoint = cameraRay.GetPoint(newDistance);
-
                 return SampleBlocktype(newPoint, cameraRay, retryCount + 1);
             }
 
@@ -183,7 +188,7 @@ namespace ReefEditor {
 
         public static Vector3Int LocalBatchFromPoint(Vector3 p) {
             const int batchSide = OCTREE_SIDE * CONTAINERS_PER_SIDE;
-            return new Vector3Int(Mathf.FloorToInt(p.x / batchSide), Mathf.FloorToInt(p.z / batchSide) * regionSize.x, Mathf.FloorToInt(p.y / batchSide) * regionSize.x * regionSize.z);
+            return new Vector3Int(Mathf.FloorToInt(p.x / batchSide), Mathf.FloorToInt(p.y / batchSide), Mathf.FloorToInt(p.z / batchSide));
         }
 
         public static void StartMetaspaceRegenerate(int tasksDone, int tasksTotal) => world.StartCoroutine(VoxelMetaspace.metaspace.RegenerateMeshesCoroutine(tasksDone, tasksTotal));

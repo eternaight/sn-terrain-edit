@@ -19,6 +19,8 @@ namespace ReefEditor.VoxelTech {
             int leng = _fullSide * _fullSide * _fullSide;
             densityGrid = new byte[leng];
             typeGrid = new byte[leng];
+            oldDensityGrid = new byte[_fullSide * _fullSide * _fullSide];
+            oldTypeGrid = new byte[_fullSide * _fullSide * _fullSide];
             
             const int so = 1;
 
@@ -114,10 +116,6 @@ namespace ReefEditor.VoxelTech {
         }
 
         public void Cache() {
-            // cache densityGrid for blur function
-            int side = densityGrid.GetLength(0);
-            oldDensityGrid = new byte[side * side * side];
-            oldTypeGrid = new byte[side * side * side];
             Array.Copy(densityGrid, oldDensityGrid, densityGrid.Length);
             Array.Copy(typeGrid, oldTypeGrid, typeGrid.Length);
         }
