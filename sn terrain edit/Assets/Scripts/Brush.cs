@@ -7,7 +7,7 @@ namespace ReefEditor {
         public static float brushSize = 10;
         public static float minBrushSize = 1;
         public static float maxBrushSize = 32;
-        public static byte selectedType = 11;
+        public static byte selectedType = 1;
         public static float brushStrength = 0.5f;
         public static BrushMode userSelectedMode = BrushMode.Add;
         public static BrushMode activeMode { get; private set; }

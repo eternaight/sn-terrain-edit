@@ -24,7 +24,7 @@
 114) deeplilypads_dirt_nocap
 121) twistybridges_rock_bridge_03_dirt
 122) twistybridges_rock_bridge_01
-123) twistybrisges_rock_bridge_02
+123) twistybridges_rock_bridge_02
 124) twistybridges_rock_bridge_03
 125) twistybridges_rock_perforated_01
 126) twistybridges_rock_perforated_02

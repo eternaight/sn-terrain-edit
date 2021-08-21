@@ -11,7 +11,7 @@ namespace ReefEditor {
 
         public bool busy = false;
 
-        public delegate void ReadFinishedCall(Octree[,,] nodes); 
+        public delegate bool ReadFinishedCall(Octree[,,] nodes); 
 
         void Awake() {
             readWriter = this;
@@ -316,9 +316,11 @@ namespace ReefEditor {
     class NodeContainer {
         public Octree[,,] nodes;
 
-        public void Callback(Octree[,,] octrees) {
+        public bool Callback(Octree[,,] octrees) {
+            if (nodes == null) return false;
             Debug.Log("received nodes");
             nodes = octrees;
+            return true;
         }
     }
 }

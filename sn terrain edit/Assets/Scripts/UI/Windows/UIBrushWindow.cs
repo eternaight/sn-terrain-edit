@@ -49,7 +49,9 @@ namespace ReefEditor.UI {
         }
         public void SetNewBlocktype() {
             if (byte.TryParse(blocktypeInput.text, out byte typeValue)) {
-                Brush.SetBrushMaterial(typeValue);
+                if (ContentLoading.SNContentLoader.instance.blocktypesData[typeValue].ExistsInGame) {
+                    Brush.SetBrushMaterial(typeValue);
+                }
             }
         }
 

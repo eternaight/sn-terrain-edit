@@ -93,11 +93,11 @@ namespace ReefEditor.VoxelTech {
             }
 
             yield return RegenerateMeshesCoroutine(1, 3);
-            loadInProgress = false;
         }
 
         public IEnumerator RegenerateMeshesCoroutine(int tasksDone, int totalTasks) {
             // redistribute full grids
+            loadInProgress = true;
             float endLabel = GetLabel(VoxelWorld.end) + 1;
             foreach (VoxelMesh mesh in meshes) {
                 loadingProgress = (GetLabel(mesh.batchIndex) / (endLabel * totalTasks)) + ((float)tasksDone) / totalTasks;
@@ -112,6 +112,7 @@ namespace ReefEditor.VoxelTech {
                 mesh.Regenerate();
                 yield return null;
             }
+            loadInProgress = false;
         }
 
         public static bool VoxelExists(int x, int y, int z) {

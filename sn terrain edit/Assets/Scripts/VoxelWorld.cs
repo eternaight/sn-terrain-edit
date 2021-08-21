@@ -163,7 +163,7 @@ namespace ReefEditor {
 
             // batch
             Vector3Int batchOffset = LocalBatchFromPoint(hitPoint);
-            if (VoxelMetaspace.BatchExists(batchOffset + start)) {
+            if (!VoxelMetaspace.BatchExists(batchOffset + start)) {
                 float newDistance = Vector3.Distance(hitPoint, cameraRay.origin) + .5f;
                 Vector3 newPoint = cameraRay.GetPoint(newDistance);
                 return SampleBlocktype(newPoint, cameraRay, retryCount + 1);
@@ -191,6 +191,6 @@ namespace ReefEditor {
             return new Vector3Int(Mathf.FloorToInt(p.x / batchSide), Mathf.FloorToInt(p.y / batchSide), Mathf.FloorToInt(p.z / batchSide));
         }
 
-        public static void StartMetaspaceRegenerate(int tasksDone, int tasksTotal) => world.StartCoroutine(VoxelMetaspace.metaspace.RegenerateMeshesCoroutine(tasksDone, tasksTotal));
+        public static Coroutine StartMetaspaceRegenerate(int tasksDone, int tasksTotal) => world.StartCoroutine(VoxelMetaspace.metaspace.RegenerateMeshesCoroutine(tasksDone, tasksTotal));
     }
 }

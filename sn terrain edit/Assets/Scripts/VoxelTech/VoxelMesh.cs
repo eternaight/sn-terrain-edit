@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using UnityEngine;
 using ReefEditor.Octrees;
 using ReefEditor.ContentLoading;
@@ -42,9 +41,13 @@ namespace ReefEditor.VoxelTech {
             coll.isTrigger = true;
         }
 
-        public void OctreesReadCallback(Octree[,,] _nodes) {
+        public bool OctreesReadCallback(Octree[,,] _nodes) {
 
-            if (_nodes == null) return;
+            if (_nodes == null) {
+                // TODO: remove dependancy
+                ReefEditor.UI.EditorUI.DisplayErrorMessage($"No file for batch {batchIndex.x}-{batchIndex.y}-{batchIndex.z}");
+                return false;
+            }
 
             for (int z = 0; z < octreeCounts.z; z++) {
                 for (int y = 0; y < octreeCounts.y; y++) {
@@ -53,6 +56,8 @@ namespace ReefEditor.VoxelTech {
                     }
                 }
             }
+
+            return true;
         }
         public void Regenerate() {
             for (int i = 0; i < octreeContainers.Length; i++) {
@@ -91,9 +96,10 @@ namespace ReefEditor.VoxelTech {
             }
         }
         public void UpdateMeshesAfterBrush(Brush.BrushStroke stroke) {
+            Vector3 brushPosition = stroke.brushLocation - transform.position;
             foreach (PointContainer container in octreeContainers) {
                 Bounds bounds = container.bounds;
-                if (OctreeRaycasting.DistanceToBox(stroke.brushLocation, bounds.min, bounds.max) <= stroke.brushRadius) {
+                if (OctreeRaycasting.DistanceToBox(brushPosition, bounds.min, bounds.max) <= stroke.brushRadius) {
                     container.UpdateFullGrid();
                     container.UpdateMesh();
                 }
@@ -109,27 +115,6 @@ namespace ReefEditor.VoxelTech {
                     }
                 }
             }
-        }
-
-        public byte SampleBlocktype(Vector3 _point, Ray _cameraRay, int _retryCount = 0) {
-            
-            if (_retryCount == 4) return 0;
-
-            Vector3 _local = _point - transform.position; 
-            int x = (int)_local.x / VoxelWorld.RESOLUTION;
-            int y = (int)_local.y / VoxelWorld.RESOLUTION;
-            int z = (int)_local.z / VoxelWorld.RESOLUTION;
-
-            byte type = octreeContainers[Globals.LinearIndex(x, y, z, 5)].SampleBlocktype(_point);
-
-            if (type == 0) {
-                float newDistance = Vector3.Distance(_point, _cameraRay.origin) + .5f;
-                Vector3 newPoint = _cameraRay.GetPoint(newDistance);
-
-                return SampleBlocktype(newPoint, _cameraRay, _retryCount + 1);
-            }
-
-            return type;
         }
 
         internal class PointContainer {
@@ -178,12 +163,14 @@ namespace ReefEditor.VoxelTech {
             public void CacheGrid() => grid.Cache();
 
             public void ApplyDensityAction(Brush.BrushStroke stroke) {
-                grid.ApplyDensityFunction(stroke, octreeIndex * VoxelWorld.OCTREE_SIDE + meshObj.transform.position);
+                if (grid != null)
+                    grid.ApplyDensityFunction(stroke, octreeIndex * VoxelWorld.OCTREE_SIDE + meshObj.transform.position);
             }
 
             public void UpdateMesh() {
                 byte[] _tempDensities;
                 byte[] _tempTypes;
+                if (grid == null) return;
                 grid.GetFullGrids(out _tempDensities, out _tempTypes);
                 
                 int[] blocktypes;
@@ -210,7 +197,10 @@ namespace ReefEditor.VoxelTech {
                 }
             }
 
-            public void UpdateFullGrid() => grid.UpdateFullGrid();
+            public void UpdateFullGrid() {
+                if (grid != null)
+                    grid.UpdateFullGrid();
+            }
 
             public byte SampleBlocktype(Vector3 worldPoint) {
                 Vector3 localPoint = worldPoint - octreeIndex * VoxelWorld.RESOLUTION - meshObj.transform.parent.position;

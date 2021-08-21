@@ -16,6 +16,7 @@ namespace ReefEditor.UI {
         }
         public float minValue = 0;
         public float maxValue = 1;
+        public bool modValue;
 
         public delegate string UIFormatFunction(float val);
         public UIFormatFunction formatFunction;
@@ -43,7 +44,10 @@ namespace ReefEditor.UI {
 
         public void OnDrag(PointerEventData eventData) {
             float barStart = transform.position.x - realWidth / 2;
-            sliderValue = Mathf.Clamp01((eventData.position.x - barStart) / realWidth);
+            if (modValue) 
+                sliderValue = ((eventData.position.x - barStart) / realWidth + 100) % 1;
+            else 
+                sliderValue = Mathf.Clamp01((eventData.position.x - barStart) / realWidth);
             OnValueUpdated();
         }
 

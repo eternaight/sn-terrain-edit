@@ -59,6 +59,7 @@ namespace ReefEditor.ContentLoading {
             yield return StartCoroutine(SetTextures(textureAssets.ToArray()));
             sw.Stop();
             Debug.Log($"Set assets in {sw.ElapsedMilliseconds}ms");
+            contentLoaded = true;
             
             if (updateMeshesOnLoad) {
                 VoxelWorld.StartMetaspaceRegenerate(12, totalTasks);
@@ -67,9 +68,8 @@ namespace ReefEditor.ContentLoading {
                     loadState = VoxelWorld.loadingState;
                     yield return null;
                 }
+                updateMeshesOnLoad = false;
             }
-
-            contentLoaded = true;
             busyLoading = false;
         }
 
@@ -131,13 +131,8 @@ namespace ReefEditor.ContentLoading {
                     materialBlocktypes.Add(nondecoName, blocktypes);
                 }
                 blocktypes.Add(blocktype);
-
-                BlocktypeMaterial entry = new BlocktypeMaterial();
-                entry.blocktype = blocktype;
-                entry.materialName = nondecoName;
-                entry.trueName = materialName;
-
-                blocktypesData[blocktype] = entry;
+                
+                blocktypesData[blocktype] = new BlocktypeMaterial(materialName, nondecoName, blocktype);
             }
         }
 
@@ -146,24 +141,9 @@ namespace ReefEditor.ContentLoading {
                 List<int> blocktypes = new List<int>();
                 if (IsTextureNeeded(textureAsset.m_PathID, out blocktypes)) {
                     byte[] image_data = textureAsset.image_data.GetData();
-                    byte[] image = new byte[0];
 
-                    if (textureAsset.m_TextureFormat == AssetStudio.TextureFormat.DXT1) {
-                        image = TextureDecoder.DecodeTextureDXT1(image_data, textureAsset.m_Width, textureAsset.m_Height);
-                    } else if (textureAsset.m_TextureFormat == AssetStudio.TextureFormat.DXT5) {
-                        image = TextureDecoder.DecodeTextureDXT5(image_data, textureAsset.m_Width, textureAsset.m_Height);
-                    }
-
-                    Texture2D newtexture = new Texture2D(textureAsset.m_Width, textureAsset.m_Height);
-                    Color[] colors = new Color[image.Length / 4];
-                    for (long i = 0; i < image.Length; i += 4) {
-                        long pixel_index = i / 4;
-                        int x = (int)(pixel_index % textureAsset.m_Width);
-                        int y = (int)(pixel_index / textureAsset.m_Width);
-                        Color color = new Color(image[i + 2] / 255f, image[i + 1] / 255f, image[i] / 255f, image[i + 3] / 255f);
-                        colors[i / 4] = color;
-                    }
-                    newtexture.SetPixels(colors);
+                    Texture2D newtexture = new Texture2D(textureAsset.m_Width, textureAsset.m_Height, (TextureFormat)((int)textureAsset.m_TextureFormat), true);
+                    newtexture.LoadRawTextureData(image_data);
                     newtexture.Apply();
 
                     int textureType = DetermineTextureType(textureAsset.m_Name);
@@ -199,7 +179,7 @@ namespace ReefEditor.ContentLoading {
         }
 
         public static Material GetMaterialForType(int b) {
-            if (instance.contentLoaded) {
+            if (instance.contentLoaded && instance.blocktypesData[b] != null && instance.blocktypesData[b].ExistsInGame) {
                 return instance.blocktypesData[b].MakeMaterial();
             }
 
@@ -234,11 +214,17 @@ namespace ReefEditor.ContentLoading {
     }
 
     public class BlocktypeMaterial {
-        public string materialName;
-        public string trueName;
+        public string originalName;
+        public string prettyName;
         public int blocktype;
         public List<long> pathIDs = new List<long>();
         public Texture2D[] textures;
+
+        public BlocktypeMaterial(string _originalName, string _prettyName, int _blocktype) {
+            originalName = _originalName;
+            prettyName = _prettyName;
+            blocktype = _blocktype;
+        }
 
         public Texture2D MainTexture {
             get {
@@ -301,16 +287,9 @@ namespace ReefEditor.ContentLoading {
                 mat.SetTexture("_NormalMap", textures[0]);
             }
             
-            mat.name = trueName;
+            mat.name = originalName;
 
             return mat;
-        }
-
-        enum MaterialSpecies {
-            Regular,
-            Capped,
-            Deco,
-            Lava
         }
     }
 }

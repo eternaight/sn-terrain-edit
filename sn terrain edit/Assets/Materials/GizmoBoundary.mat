@@ -86,12 +86,12 @@ Material:
     - _SpecularHighlights: 1
     - _SrcBlend: 5
     - _Surface: 1
-    - _Thickness: 0.5
+    - _Thickness: 0.25
     - _WorkflowMode: 1
     - _ZWrite: 0
     m_Colors:
     - Color_44240209: {r: 0.6148985, g: 0.8867924, b: 0.85720813, a: 1}
-    - Vector3_F90F351E: {r: 0.25, g: 0.25, b: 0.25, a: 0}
+    - Vector3_F90F351E: {r: 0.5, g: 0.5, b: 0.5, a: 0}
     - _BaseColor: {r: 0.525, g: 0.525, b: 0.525, a: 0.46666667}
     - _Color: {r: 1, g: 1, b: 1, a: 1}
     - _CursorWorldPos: {r: 0, g: 0, b: 0, a: 0}

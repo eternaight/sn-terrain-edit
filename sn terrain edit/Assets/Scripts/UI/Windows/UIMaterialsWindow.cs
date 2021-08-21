@@ -78,7 +78,7 @@ namespace ReefEditor.UI {
                 gameObject = _gameObject;
                 mat = _mat;
 
-                string materialName = mat.trueName;
+                string materialName = mat.prettyName;
                 if (materialName.Contains("deco")) {
                     materialName = string.Concat(materialName.Split(' ')[0], "-deco");
                 }

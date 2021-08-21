@@ -21,13 +21,16 @@ namespace ReefEditor.UI {
                 return;
             }
 
-            TryExportFileWithName(filenameInputGroup.GetComponentInChildren<InputField>().text);
+            string filename = filenameInputGroup.GetComponentInChildren<InputField>().text;
+            if (string.IsNullOrEmpty(filename)) filename = "TerrainPatch";
+
+            TryExportFileWithName(filename);
         }
         private void TryExportFileWithName(string name, int attempt = 0) {
             string filename = Globals.instance.batchOutputPath + "//" + name + (attempt == 0 ? "" : $"({attempt})") + (modeSelection.selection == 1 ? ".optoctreepatch" : ".optoctrees");
             while (System.IO.File.Exists(filename)) {
                 attempt++;
-                filename = Globals.instance.batchOutputPath + "//" + name + (attempt == 0 ? "" : $"({attempt})") + (modeSelection.selection == 1 ? ".optoctreepatch" : ".optoctrees");
+                filename = Globals.instance.batchOutputPath + "//" + name + ($"({attempt})") + (modeSelection.selection == 1 ? ".optoctreepatch" : ".optoctrees");
             }
 
             VoxelWorld.OnRegionLoaded += EditorUI.DisableStatusBar;
