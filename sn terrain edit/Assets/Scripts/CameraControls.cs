@@ -64,8 +64,10 @@ namespace ReefEditor {
                     }
                 }
 
-                zoomLevel = Mathf.Clamp01(zoomLevel - Input.mouseScrollDelta.y * 0.01f);
-                transform.localPosition = new Vector3(0, 0, zoomStart + zoomRange * zoomLevel);
+                if (!mouseOverUI) {
+                    zoomLevel = Mathf.Clamp01(zoomLevel - Input.mouseScrollDelta.y * 0.01f);
+                    transform.localPosition = new Vector3(0, 0, zoomStart + zoomRange * zoomLevel);
+                }
             }
         }
 
