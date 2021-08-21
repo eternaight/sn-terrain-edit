@@ -125,8 +125,7 @@ namespace ReefEditor.ContentLoading {
                     nondecoName = "Sand01";
                 }
 
-                List<int> blocktypes;
-                if (!materialBlocktypes.TryGetValue(nondecoName, out blocktypes)) {
+                if (!materialBlocktypes.TryGetValue(nondecoName, out List<int> blocktypes)) {
                     blocktypes = new List<int>();
                     materialBlocktypes.Add(nondecoName, blocktypes);
                 }
@@ -146,9 +145,8 @@ namespace ReefEditor.ContentLoading {
                     newtexture.LoadRawTextureData(image_data);
                     newtexture.Apply();
 
-                    int textureType = DetermineTextureType(textureAsset.m_Name);
                     foreach(int b in blocktypes) {
-                        blocktypesData[b].SetTexture(textureType, textureAsset.m_PathID, newtexture);
+                        blocktypesData[b].SetTexture(textureAsset.m_PathID, newtexture);
                     }
                 }
                 if (Time.time - lastFrame >= 1.0f) {
@@ -160,14 +158,17 @@ namespace ReefEditor.ContentLoading {
 
         IEnumerator SetMaterials(AssetStudio.Material[] materialAssets) {
             foreach (AssetStudio.Material materialAsset in materialAssets) {
-                List<long> texturePathIDs = new List<long>();
+
+                var texturePathIDs = new Dictionary<long, string>();
                 foreach(KeyValuePair<string, AssetStudio.UnityTexEnv> pair in materialAsset.m_SavedProperties.m_TexEnvs) {
-                    texturePathIDs.Add(pair.Value.m_Texture.m_PathID);
+                    long pathID = pair.Value.m_Texture.m_PathID;
+                    if (pathID != 0 && !texturePathIDs.ContainsKey(pathID))
+                        texturePathIDs.Add(pathID, pair.Key);
                 }
 
                 if (materialBlocktypes.ContainsKey(materialAsset.m_Name)) {
                     foreach(int blocktype in materialBlocktypes[materialAsset.m_Name]) {
-                        blocktypesData[blocktype].pathIDs.AddRange(texturePathIDs);
+                        blocktypesData[blocktype].propertyFromPathIDMap = texturePathIDs;
                     }
                 }
 
@@ -195,7 +196,7 @@ namespace ReefEditor.ContentLoading {
 
             for(int i = 0; i < 255; i++) {
                 if (blocktypesData[i] != null) { 
-                    if (blocktypesData[i].pathIDs.Contains(pathID) && pathID != 0) {
+                    if (blocktypesData[i].propertyFromPathIDMap.ContainsKey(pathID) && pathID != 0) {
                         blocktypes.Add(i);
                     }
                 }
@@ -206,7 +207,9 @@ namespace ReefEditor.ContentLoading {
         
         static int DetermineTextureType(string name) {
             string lowercaseName = name.ToLower();
+            if (lowercaseName.Contains("diffuse")) return 0;
             if (lowercaseName.Contains("sig")) return 2;
+            if (lowercaseName.Contains("slg")) return 2;
             if (lowercaseName.Contains("normal")) return 1;
             if (lowercaseName.Contains("mormal")) return 1;
             return 0;
@@ -217,7 +220,8 @@ namespace ReefEditor.ContentLoading {
         public string originalName;
         public string prettyName;
         public int blocktype;
-        public List<long> pathIDs = new List<long>();
+        private bool useCap;
+        public Dictionary<long, string> propertyFromPathIDMap = new Dictionary<long, string>();
         public Texture2D[] textures;
 
         public BlocktypeMaterial(string _originalName, string _prettyName, int _blocktype) {
@@ -228,15 +232,12 @@ namespace ReefEditor.ContentLoading {
 
         public Texture2D MainTexture {
             get {
-                if (textures[3] != null) {
-                    return textures[2];
-                }
-                return textures[1];
+                return textures[0];
             }
         }
         public Texture2D SideTexture {
             get {
-                return textures[5];
+                return textures[2];
             }
         }
 
@@ -246,45 +247,47 @@ namespace ReefEditor.ContentLoading {
             }
         }
 
-        public void SetTexture(int type, long pathID, Texture2D texture) {
+        public void SetTexture(long pathID, Texture2D texture) {
             if (textures == null) {
-                textures = new Texture2D[6];
+                textures = new Texture2D[4];
             }
-            // flowing lava materials have 8 textures
-            if (pathIDs.Count > 6) {
-                if (type == 0) {
-                    if (textures[2] != null) {
-                        textures[5] = texture;
-                    } else {
-                        textures[2] = texture;
-                    }
-                } else if (type == 1) {
-                    if (textures[0] != null) {
-                        textures[3] = texture;
-                    } else {
-                        textures[0] = texture;
-                    }
-                }
-                // skipping SIG, noise and flow because irrelevant now
-            } else {
-                textures[pathIDs.IndexOf(pathID)] = texture;
+            
+            switch (propertyFromPathIDMap[pathID]) {
+                case "_MainTex":
+                case "_CapTexture":
+                    textures[0] = texture;
+                    break;
+                case "_BumpMap":
+                case "_CapBumpMap":
+                    textures[1] = texture;
+                    break;
+                case "_SideTexture":
+                    useCap = true;
+                    textures[2] = texture;
+                    break;
+                case "_SideBumpMap":
+                    useCap = true;
+                    textures[3] = texture;
+                    break;
+                default:
+                    break;
             }
         } 
 
         public Material MakeMaterial() {
             Material mat;
-            if (textures != null && textures[3] != null) {
+            if (useCap) {
                 mat = new Material(Globals.instance.batchCappedMat);
 
-                mat.SetTexture("_MainTex", textures[2]);
-                mat.SetTexture("_NormalMap", textures[0]);
-                mat.SetTexture("_SideTex", textures[5]);
+                mat.SetTexture("_MainTex", textures[0]);
+                mat.SetTexture("_NormalMap", textures[1]);
+                mat.SetTexture("_SideTex", textures[2]);
                 mat.SetTexture("_SideNormalMap", textures[3]);
             } else {
                 mat = new Material(Globals.instance.batchMat);
 
-                mat.SetTexture("_MainTex", textures[1]);
-                mat.SetTexture("_NormalMap", textures[0]);
+                mat.SetTexture("_MainTex", textures[0]);
+                mat.SetTexture("_NormalMap", textures[1]);
             }
             
             mat.name = originalName;
