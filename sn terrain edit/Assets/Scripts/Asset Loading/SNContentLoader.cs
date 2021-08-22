@@ -14,8 +14,6 @@ namespace ReefEditor.ContentLoading {
         // TODO: remove later and rework into some loader task system
         public bool updateMeshesOnLoad;
 
-        private static float lastFrame;
-
         public float loadProgress;
         public string loadState;
 
@@ -44,7 +42,7 @@ namespace ReefEditor.ContentLoading {
             sw.Restart();
             List<AssetStudio.Texture2D> textureAssets = new List<AssetStudio.Texture2D>();
             List<AssetStudio.Material> materialAssets = new List<AssetStudio.Material>();
-            yield return StartCoroutine(GetAssets(textureAssets, materialAssets));
+            GetAssets(textureAssets, materialAssets);
             sw.Stop();
 
             Debug.Log($"Got assets in {sw.ElapsedMilliseconds}ms");
@@ -53,11 +51,13 @@ namespace ReefEditor.ContentLoading {
             yield return null;
         
             sw.Restart();
-            yield return StartCoroutine(SetMaterials(materialAssets.ToArray()));
+            SetMaterials(materialAssets.ToArray());
             loadProgress = 8f / totalTasks;
             loadState = "Setting textures";
-            yield return StartCoroutine(SetTextures(textureAssets.ToArray()));
+            yield return null;
+            SetTextures(textureAssets.ToArray());
             sw.Stop();
+            yield return null;
             Debug.Log($"Set assets in {sw.ElapsedMilliseconds}ms");
             contentLoaded = true;
             
@@ -73,7 +73,7 @@ namespace ReefEditor.ContentLoading {
             busyLoading = false;
         }
 
-        IEnumerator GetAssets(List<AssetStudio.Texture2D> textureAssets, List<AssetStudio.Material> materialAssets) {
+        void GetAssets(List<AssetStudio.Texture2D> textureAssets, List<AssetStudio.Material> materialAssets) {
 
             string bundleName = "\\resources.assets";
             string resourcesPath = Globals.instance.resourcesSourcePath + bundleName;
@@ -93,11 +93,6 @@ namespace ReefEditor.ContentLoading {
                     AssetStudio.Material materialAsset = obj as AssetStudio.Material;
                     if (materialAsset != null) {
                         materialAssets.Add(materialAsset);
-                    }
-
-                    if (Time.time - lastFrame >= 1.0f) {
-                        lastFrame = Time.time;
-                        yield return null;
                     }
                 }
             }
@@ -135,7 +130,7 @@ namespace ReefEditor.ContentLoading {
             }
         }
 
-        IEnumerator SetTextures(AssetStudio.Texture2D[] textureAssets) {
+        void SetTextures(AssetStudio.Texture2D[] textureAssets) {
             foreach (AssetStudio.Texture2D textureAsset in textureAssets) {
                 List<int> blocktypes = new List<int>();
                 if (IsTextureNeeded(textureAsset.m_PathID, out blocktypes)) {
@@ -149,14 +144,10 @@ namespace ReefEditor.ContentLoading {
                         blocktypesData[b].SetTexture(textureAsset.m_PathID, newtexture);
                     }
                 }
-                if (Time.time - lastFrame >= 1.0f) {
-                    lastFrame = Time.time;
-                    yield return null;
-                }
             }
         }
 
-        IEnumerator SetMaterials(AssetStudio.Material[] materialAssets) {
+        void SetMaterials(AssetStudio.Material[] materialAssets) {
             foreach (AssetStudio.Material materialAsset in materialAssets) {
 
                 var texturePathIDs = new Dictionary<long, string>();
@@ -170,11 +161,6 @@ namespace ReefEditor.ContentLoading {
                     foreach(int blocktype in materialBlocktypes[materialAsset.m_Name]) {
                         blocktypesData[blocktype].propertyFromPathIDMap = texturePathIDs;
                     }
-                }
-
-                if (Time.time - lastFrame >= 1.0f) {
-                    lastFrame = Time.time;
-                    yield return null;
                 }
             }
         }
@@ -203,16 +189,6 @@ namespace ReefEditor.ContentLoading {
             }
 
             return blocktypes.Count > 0;
-        } 
-        
-        static int DetermineTextureType(string name) {
-            string lowercaseName = name.ToLower();
-            if (lowercaseName.Contains("diffuse")) return 0;
-            if (lowercaseName.Contains("sig")) return 2;
-            if (lowercaseName.Contains("slg")) return 2;
-            if (lowercaseName.Contains("normal")) return 1;
-            if (lowercaseName.Contains("mormal")) return 1;
-            return 0;
         } 
     }
 

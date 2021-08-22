@@ -141,12 +141,12 @@ namespace ReefEditor {
             Camera.main.gameObject.SendMessage("OnRegionLoad");
         }
 
-        public static void ExportRegion(bool doPatch, string filename = "terrainPatch") {
-            world.StartCoroutine(world.ExportRegionCoroutine(doPatch, filename));
+        public static void ExportRegion(bool doPatch) {
+            world.StartCoroutine(world.ExportRegionCoroutine(doPatch));
         }
-        IEnumerator ExportRegionCoroutine(bool doPatch, string filename) {
+        IEnumerator ExportRegionCoroutine(bool doPatch) {
             if (doPatch) {
-                yield return StartCoroutine(BatchReadWriter.readWriter.WriteOctreePatchCoroutine(filename, metaspace));
+                yield return StartCoroutine(BatchReadWriter.readWriter.WriteOctreePatchCoroutine(metaspace));
             } else {
                 foreach (VoxelMesh batch in metaspace.meshes) {
                     batch.Write();
@@ -154,7 +154,7 @@ namespace ReefEditor {
                 }
             }
 
-            OnRegionExported();
+            OnRegionExported?.Invoke();
         }
         
         public static byte SampleBlocktype(Vector3 hitPoint, Ray cameraRay, int retryCount= 0) {

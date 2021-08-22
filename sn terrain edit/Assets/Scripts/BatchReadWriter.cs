@@ -21,8 +21,6 @@ namespace ReefEditor {
             string batchname = string.Format("\\compiled-batch-{0}-{1}-{2}.optoctrees", batchIndex.x, batchIndex.y, batchIndex.z);
             busy = true;
 
-            //Debug.Log("Reading "+ batchname);
-
             Vector3Int octreeDimensions = Vector3Int.one * VoxelWorld.CONTAINERS_PER_SIDE;
             if (batchIndex.x == 25) octreeDimensions.x = 3;
             if (batchIndex.z == 25) octreeDimensions.z = 3;
@@ -239,13 +237,12 @@ namespace ReefEditor {
             return true;
         }
         
-        public IEnumerator WriteOctreePatchCoroutine(string filename, VoxelMetaspace metaspace) {
-            string batchname = string.Format("\\{0}.optoctreepatch", filename);
+        public IEnumerator WriteOctreePatchCoroutine(VoxelMetaspace metaspace) {
             
             busy = true;
-            Debug.Log($"Writing {metaspace.meshes.Length} batch patches to {Globals.instance.batchOutputPath}");
+            Debug.Log($"Writing {metaspace.meshes.Length} batch patches as {Globals.instance.batchOutputPath}");
 
-            BinaryWriter writer = new BinaryWriter(File.Open(Globals.instance.batchOutputPath + batchname, FileMode.OpenOrCreate));
+            BinaryWriter writer = new BinaryWriter(File.Open(Globals.instance.batchOutputPath, FileMode.Create));
             // write version
             writer.Write(0u);
 
@@ -272,7 +269,7 @@ namespace ReefEditor {
                     }
                 }
                 
-                Debug.Log(batchChanges.Count);
+                Debug.Log($"Patch contains {batchChanges.Count} changed octrees.");
                 if (batchChanges.Count != 0) {
                     // start of batch write
                     writer.Write((short)batch.batchIndex.x);
@@ -283,7 +280,7 @@ namespace ReefEditor {
                     writer.Write((byte)batchChanges.Count);
 
                     foreach (Octree change in batchChanges) {
-                        if (change.Index > 125) Debug.Log("octree index > 125");
+                        if (change.Index > 125) Debug.Log("found an octree index > 125");
                         writer.Write(change.Index);
                         WriteOctree(writer, change);
                     }
@@ -316,10 +313,9 @@ namespace ReefEditor {
     class NodeContainer {
         public Octree[,,] nodes;
 
-        public bool Callback(Octree[,,] octrees) {
-            if (nodes == null) return false;
-            Debug.Log("received nodes");
-            nodes = octrees;
+        public bool Callback(Octree[,,] _nodes) {
+            if (_nodes is null) return false;
+            nodes = _nodes;
             return true;
         }
     }

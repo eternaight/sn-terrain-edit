@@ -8,20 +8,20 @@ namespace ReefEditor.UI {
         InputField blocktypeInput;
 
         void Awake() {
-            modeSelector = transform.GetChild(1).GetChild(1).GetComponent<UIButtonSelect>();
+            modeSelector = transform.GetChild(1).GetChild(0).GetComponentInChildren<UIButtonSelect>();
             modeSelector.OnSelectionChanged += SetNewBrushMode;
 
-            brushSizeSelector = transform.GetChild(1).GetChild(3).GetComponentInChildren<UIHybridInput>();
+            brushSizeSelector = transform.GetChild(1).GetChild(1).GetComponentInChildren<UIHybridInput>();
             brushSizeSelector.minValue = Brush.minBrushSize;
             brushSizeSelector.maxValue = Brush.maxBrushSize;
             brushSizeSelector.formatFunction = FormatSize;
             brushSizeSelector.OnValueUpdated += SetNewBrushSize;
 
-            brushStrengthSelector = transform.GetChild(1).GetChild(5).GetComponentInChildren<UIHybridInput>();
+            brushStrengthSelector = transform.GetChild(1).GetChild(2).GetComponentInChildren<UIHybridInput>();
             brushStrengthSelector.formatFunction = FormatStrength;
             brushStrengthSelector.OnValueUpdated += SetNewBrushStrength;
 
-            blocktypeInput = transform.GetChild(1).GetChild(6).GetComponentInChildren<InputField>();
+            blocktypeInput = transform.GetChild(1).GetChild(3).GetComponentInChildren<InputField>();
             Brush.OnParametersChanged += RedrawValues;
         }
 

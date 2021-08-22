@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using SFB;
+using UnityEngine;
 using UnityEngine.UI;
 
 namespace ReefEditor.UI {
@@ -7,64 +8,47 @@ namespace ReefEditor.UI {
         UIButtonSelect modeSelection;
 
         GameObject checkboxGroup => transform.GetChild(2).GetChild(1).gameObject;
-        GameObject folderInputGroup => transform.GetChild(2).GetChild(2).gameObject;
-        GameObject filenameInputGroup => transform.GetChild(2).GetChild(3).gameObject;
 
         public void Export() {
-
-            if (string.IsNullOrEmpty(Globals.instance.batchOutputPath)) {
-                EditorUI.DisplayErrorMessage("No output path set.");
-                return;
-            }
             if (!VoxelWorld.aRegionIsLoaded) {
                 EditorUI.DisplayErrorMessage("Nothing to export!");
                 return;
             }
 
-            string filename = filenameInputGroup.GetComponentInChildren<InputField>().text;
-            if (string.IsNullOrEmpty(filename)) filename = "TerrainPatch";
-
-            TryExportFileWithName(filename);
-        }
-        private void TryExportFileWithName(string name, int attempt = 0) {
-            string filename = Globals.instance.batchOutputPath + "//" + name + (attempt == 0 ? "" : $"({attempt})") + (modeSelection.selection == 1 ? ".optoctreepatch" : ".optoctrees");
-            while (System.IO.File.Exists(filename)) {
-                attempt++;
-                filename = Globals.instance.batchOutputPath + "//" + name + ($"({attempt})") + (modeSelection.selection == 1 ? ".optoctreepatch" : ".optoctrees");
+            if (modeSelection.selection == 1) {
+                // Export patch
+                string path = StandaloneFileBrowser.SaveFilePanel("Save patch as...", Application.dataPath, "TerrainPatch", "optoctreepatch");
+                if (string.IsNullOrEmpty(path)) {
+                    // user cancels
+                    return;
+                }
+                Globals.instance.userBatchOutputPath = path;
+            }
+            else {
+                // Export some optoctrees files
+                string[] paths = StandaloneFileBrowser.OpenFolderPanel("Select export folder...", Application.dataPath, false);
+                if (paths.Length == 0) {
+                    // user cancels
+                    return;
+                }
+                Globals.instance.userBatchOutputPath = paths[0];
             }
 
-            VoxelWorld.OnRegionLoaded += EditorUI.DisableStatusBar;
+            VoxelWorld.OnRegionExported += EditorUI.DisableStatusBar;
             EditorUI.UpdateStatusBar("Exporting...", 1);
-            VoxelWorld.ExportRegion(modeSelection.selection == 1, name + (attempt == 0 ? "" : $"({attempt})"));
-        }
-
-        public void SetExportPath() {
-            
-            InputField fieldInput = folderInputGroup.GetComponentInChildren<InputField>();
-            fieldInput.text = Globals.instance.userBatchOutputPath;
-        }
-        public void SaveNewExportPath() {
-            InputField fieldI = folderInputGroup.GetComponentInChildren<InputField>();
-
-            if (fieldI.text != "") {
-                Globals.SetBatchOutputPath(fieldI.text, true);
-            }
+            VoxelWorld.ExportRegion(modeSelection.selection == 1);
         }
 
         public void OnCheckboxInteract() {
             Globals.instance.exportIntoGame = checkbox.check;
-            folderInputGroup.SetActive(!checkbox.check);
         }
 
         public void OnModeChanged() {
             if (modeSelection.selection == 1) {
                 checkboxGroup.SetActive(false);
-                folderInputGroup.SetActive(true);
-                filenameInputGroup.SetActive(true);
                 Globals.instance.exportIntoGame = false;
             } else {
                 checkboxGroup.SetActive(true);
-                filenameInputGroup.SetActive(false);
                 OnCheckboxInteract();
             }
         }
@@ -72,7 +56,6 @@ namespace ReefEditor.UI {
         // overrides
         public override void EnableWindow()
         {
-            SetExportPath();
             if (checkbox is null) {
                 checkbox = GetComponentInChildren<UICheckbox>();
                 checkbox.transform.GetComponent<Button>().onClick.AddListener(OnCheckboxInteract);
@@ -101,11 +84,6 @@ namespace ReefEditor.UI {
             else
                 transform.GetChild(2).GetChild(0).GetChild(2).GetChild(0).GetComponent<Text>().text = $"{batchCount} files";
             transform.GetChild(2).GetChild(0).GetChild(2).GetChild(1).gameObject.SetActive(true);
-        }
-        public override void DisableWindow()
-        {
-            SaveNewExportPath();
-            base.DisableWindow();
         }
     }
 }

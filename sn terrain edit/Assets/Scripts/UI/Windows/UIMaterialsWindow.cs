@@ -21,6 +21,11 @@ namespace ReefEditor.UI {
         }
 
         public void LoadMaterials() {
+
+            if (!Globals.CheckIsGamePathValid()) {
+                EditorUI.DisplayErrorMessage("Please select a valid game path");
+                return;
+            }
             transform.GetChild(1).gameObject.SetActive(false);
             transform.GetChild(2).gameObject.SetActive(true);
 

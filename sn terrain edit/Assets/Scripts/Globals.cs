@@ -157,5 +157,9 @@ namespace ReefEditor {
             instance.boundaryGizmoMat.SetVector("_CursorWorldPos", newPos);
             instance.boundaryGizmoMat.SetFloat("_BlendRadius", radius);
         }
+
+        public static bool CheckIsGamePathValid() {
+            return Directory.Exists(instance.batchSourcePath) && Directory.Exists(instance.resourcesSourcePath);
+        }
     }
 }

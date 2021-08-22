@@ -6,8 +6,8 @@ namespace ReefEditor.UI {
     public class UILoadWindow : UIWindow {
         public void LoadBatch() {
 
-            if (string.IsNullOrEmpty(Globals.instance.gamePath)) {
-                EditorUI.DisplayErrorMessage("Game path must be entered in\nthe Settings window");
+            if (!Globals.CheckIsGamePathValid()) {
+                EditorUI.DisplayErrorMessage("Please select a valid game path");
                 return;
             }
 

@@ -49,10 +49,12 @@ namespace ReefEditor.VoxelTech {
                 return false;
             }
 
+            nodes = _nodes;
+
             for (int z = 0; z < octreeCounts.z; z++) {
                 for (int y = 0; y < octreeCounts.y; y++) {
                     for (int x = 0; x < octreeCounts.x; x++) {
-                        octreeContainers[Globals.LinearIndex(x, y, z, octreeCounts)].SetOctree(_nodes[z, y, x]);
+                        octreeContainers[Globals.LinearIndex(x, y, z, octreeCounts)].SetOctree(nodes[z, y, x]);
                     }
                 }
             }
