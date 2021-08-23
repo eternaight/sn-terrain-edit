@@ -124,9 +124,16 @@ namespace ReefEditor.VoxelTech {
             return (treeIndex.x >= 0 && treeIndex.x < dimensions.x && treeIndex.y >= 0 && treeIndex.y < dimensions.y && treeIndex.z >= 0 && treeIndex.z < dimensions.z);
         }
         public static bool BatchExists(Vector3Int batchIndex) {
-            return (batchIndex.x >= VoxelWorld.start.x && batchIndex.x <= VoxelWorld.end.x
-                && batchIndex.y >= VoxelWorld.start.y && batchIndex.y <= VoxelWorld.end.y
-                && batchIndex.z >= VoxelWorld.start.z && batchIndex.z <= VoxelWorld.end.z);
+            if (batchIndex.x >= VoxelWorld.start.x && batchIndex.x <= VoxelWorld.end.x
+                                                   && batchIndex.y >= VoxelWorld.start.y &&
+                                                   batchIndex.y <= VoxelWorld.end.y
+                                                   && batchIndex.z >= VoxelWorld.start.z &&
+                                                   batchIndex.z <= VoxelWorld.end.z)
+            {
+                return metaspace[batchIndex].nodes != null;
+            }
+
+            return false;
         }
 
 
