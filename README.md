@@ -23,9 +23,9 @@ Batch index can be learned in-game using F1 menu.
 5. When you're finished, save the batch using the Export window.
 
 ## camera controls:
-WASD or arrows for FPS movement
-space/c for moving up and down respectively
-mouse to open various 
+- WASD or arrows for FPS movement
+- space/c for moving up and down respectively
+- mouse to open various windows
 
 ## Open source code used:
 Asset Studio Scripts - by Perfare [(Asset Studio)](https://github.com/Perfare/AssetStudio/tree/master/AssetStudio)
