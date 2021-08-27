@@ -2994,6 +2994,10 @@ MonoBehaviour:
   statusBar: {fileID: 1646270908}
   errorPrefab: {fileID: 2475003777856417063, guid: e55fdf942ef979445b2cf1bb6a40fee6,
     type: 3}
+  uiColors:
+  - {r: 0.6132076, g: 0.107447445, b: 0.020247431, a: 1}
+  - {r: 0.76862746, g: 0.706635, b: 0.023529401, a: 1}
+  - {r: 0.019607844, g: 0.76862746, b: 0.41960785, a: 1}
 --- !u!1 &458629631
 GameObject:
   m_ObjectHideFlags: 0
@@ -8791,8 +8795,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 130.7933, y: -15}
-  m_SizeDelta: {x: 261.5866, y: 30}
+  m_AnchoredPosition: {x: 130.73015, y: -15}
+  m_SizeDelta: {x: 261.4603, y: 30}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1485077239
 MonoBehaviour:
@@ -13015,8 +13019,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 415.7933, y: -15}
-  m_SizeDelta: {x: 248.41338, y: 30}
+  m_AnchoredPosition: {x: 415.73016, y: -15}
+  m_SizeDelta: {x: 248.5397, y: 30}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1913188473
 MonoBehaviour:
