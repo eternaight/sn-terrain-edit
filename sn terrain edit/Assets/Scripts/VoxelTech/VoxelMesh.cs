@@ -42,15 +42,7 @@ namespace ReefEditor.VoxelTech {
         }
 
         public bool OctreesReadCallback(Octree[,,] _nodes) {
-
-            if (_nodes == null) {
-                // TODO: remove dependancy
-                ReefEditor.UI.EditorUI.DisplayErrorMessage($"No file for batch {batchIndex.x}-{batchIndex.y}-{batchIndex.z}");
-                return false;
-            }
-
             nodes = _nodes;
-
             for (int z = 0; z < octreeCounts.z; z++) {
                 for (int y = 0; y < octreeCounts.y; y++) {
                     for (int x = 0; x < octreeCounts.x; x++) {

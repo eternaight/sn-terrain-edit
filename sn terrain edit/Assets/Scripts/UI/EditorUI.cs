@@ -6,6 +6,7 @@ namespace ReefEditor.UI {
         public static EditorUI inst;
         [SerializeField] RectTransform statusBar;
         public GameObject errorPrefab;
+        public Color[] uiColors;
 
         void Start() {
             inst = this;
@@ -21,14 +22,23 @@ namespace ReefEditor.UI {
             inst.statusBar.gameObject.SetActive(false);
         }
 
-        public static void DisplayErrorMessage(string message) {
+        public static void DisplayErrorMessage(string message, NotificationType type = NotificationType.Error) {
             // clear previous error if it exists
             if (inst.statusBar.parent.childCount > 1) {
                 Destroy(inst.statusBar.parent.GetChild(1).gameObject);
             }
             GameObject go = Instantiate(inst.errorPrefab, inst.statusBar.parent);
             go.transform.GetComponentInChildren<Text>().text = message;
+            go.transform.GetChild(1).GetComponent<Image>().color = inst.uiColors[(int) type];
             go.transform.SetAsLastSibling();
+        }
+
+        public enum NotificationType
+        {
+            Error,
+            Warning,
+            Success
+            
         }
     }
 }

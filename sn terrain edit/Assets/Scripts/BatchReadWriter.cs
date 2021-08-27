@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 using ReefEditor.Octrees;
+using ReefEditor.UI;
 using ReefEditor.VoxelTech;
 
 namespace ReefEditor {
@@ -54,6 +55,7 @@ namespace ReefEditor {
                     int nodeCount = data[curr_pos + 1] * 256 + data[curr_pos];
                     // record all nodes of this octree in an array
                     OctNodeData[] nodesOfThisOctree = new OctNodeData[nodeCount];
+                    Vector3 batchOrigin = (batchIndex - VoxelWorld.start) * VoxelWorld.OCTREE_SIDE * VoxelWorld.CONTAINERS_PER_SIDE;
                     for (int i = 0; i < nodeCount; ++i) {
                         byte type = data[curr_pos + 2 + i * 4];
                         byte signedDist = data[curr_pos + 3 + i * 4];
@@ -62,7 +64,7 @@ namespace ReefEditor {
                         nodesOfThisOctree[i] = (new OctNodeData((byte)type, (byte)signedDist, (ushort)childIndex));
                     }
 
-                    Octree octree = new Octree(x, y, z, VoxelWorld.OCTREE_SIDE, batchIndex * 160);
+                    Octree octree = new Octree(x, y, z, VoxelWorld.OCTREE_SIDE, batchOrigin);
                     octree.Write(nodesOfThisOctree);
                     octrees[z, y, x] = octree;
 
@@ -77,7 +79,17 @@ namespace ReefEditor {
             // if no batch file
             else {
                 Debug.Log("no file for batch " + batchname);
-                readFinishedCall(null);
+                // TODO: remove dependency
+                ReefEditor.UI.EditorUI.DisplayErrorMessage($"No file for batch {batchIndex.x}-{batchIndex.y}-{batchIndex.z}\n" +
+                                                           $"Created an empty batch", EditorUI.NotificationType.Warning);
+                const int side = VoxelWorld.CONTAINERS_PER_SIDE;
+                Octree[,,] nodes = new Octree[side, side, side];
+                Vector3 batchOrigin = (batchIndex - VoxelWorld.start) * VoxelWorld.OCTREE_SIDE * VoxelWorld.CONTAINERS_PER_SIDE;
+                for (int i = 0; i < side * side * side; i++)
+                {
+                    nodes[i / 25, i % 25 / 5, i % 5] = new Octree(i / 25, i % 25 / 5, i % 5, VoxelWorld.OCTREE_SIDE, batchOrigin);
+                }
+                readFinishedCall(nodes);
             }
 
             busy = false;
