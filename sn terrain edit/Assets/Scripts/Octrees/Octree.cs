@@ -19,27 +19,17 @@ namespace ReefEditor.Octrees {
                 return node.position;
             }
         }
-        public byte Index {
-            get {
-                return (byte)(index.x * 25 + index.y * 5 + index.z);
-            }
-        }
+        public byte Index => (byte)(index.x * 25 + index.y * 5 + index.z);
 
         public Octree(int x, int y, int z, float rootSize, Vector3 batchOrigin) {
 
-            this.index = new Vector3Int(x, y, z);
+            index = new Vector3Int(x, y, z);
             
             node = new OctNode(batchOrigin + new Vector3(x, y, z) * rootSize, rootSize);
         }
 
         public OctNodeData GetNodeFromPos(Vector3 pos) {
-            
-            //System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
-
-            //sw.Start();
             OctNodeData data = node.GetNodeDataFromPoint(pos);
-            //sw.Stop();
-            //Debug.Log($"Octree work done in {sw.ElapsedMilliseconds}");
 
             return data;
         }
@@ -99,7 +89,7 @@ namespace ReefEditor.Octrees {
                 hasChildren = false;
                 this.position = position;
                 this.size = size;
-                data = new OctNodeData(false);
+                data = new OctNodeData();
             }
 
             public void Subdivide() {
@@ -166,19 +156,17 @@ namespace ReefEditor.Octrees {
             }   
 
             public OctNodeData GetNodeDataFromPoint(Vector3 p) {
-                OctNodeData data = new OctNodeData(false);
-
                 if (ContainsPoint(p)) {
 
                     if (children == null) {
                         // success case
-                        return this.data;
+                        return data;
                     }
 
                     for (int b = 0; b < 8; b++) {
                         OctNodeData childdata = children[b].GetNodeDataFromPoint(p);
 
-                        if (childdata.filled) {
+                        if (!(childdata is null)) {
                             // success case follow-up
                             return childdata;
                         }
@@ -186,7 +174,7 @@ namespace ReefEditor.Octrees {
                 }
 
                 // fail case
-                return data;
+                return null;
             }
 
             public bool ContainsPoint(Vector3 p) {
@@ -373,25 +361,21 @@ namespace ReefEditor.Octrees {
 
     public class OctNodeData {
         
-        public bool filled;
         public byte type;
         public byte signedDist;
         public ushort childPosition;
 
-        public OctNodeData(bool filled) {
-            this.filled = false;
+        public OctNodeData() {
             this.type = 0;
             this.signedDist = 0;
             this.childPosition = 0;
         }
         public OctNodeData(byte type, byte signedDistance, ushort childPos) {
-            this.filled = true;
             this.type = type;
             this.signedDist = signedDistance;
             this.childPosition = childPos;
         }
         public OctNodeData(OctNodeData other) {
-            this.filled = other.filled;
             this.type = other.type;
             this.signedDist = other.signedDist;
             this.childPosition = other.childPosition;
@@ -416,15 +400,11 @@ namespace ReefEditor.Octrees {
         }
 
         public float GetDensity() {
-
-            if (filled) {
-                if (signedDist == 0) 
-                {
-                    return (type == 0 ? -1 : 1);
-                }
-                return (signedDist - 126) / 126f;
+            if (signedDist == 0) 
+            {
+                return (type == 0 ? -1 : 1);
             }
-            return -1f;
+            return (signedDist - 126) / 126f;
         }
         public static float DecodeDensity(byte densityByte) {
             return (densityByte - 126) / 126f;
@@ -440,7 +420,6 @@ namespace ReefEditor.Octrees {
         public override bool Equals(object obj) {
             if (obj is OctNodeData) {
                 return(
-                    ((OctNodeData)obj).filled == filled &&
                     ((OctNodeData)obj).type == type &&
                     ((OctNodeData)obj).signedDist == signedDist &&
                     ((OctNodeData)obj).childPosition == childPosition
@@ -454,7 +433,6 @@ namespace ReefEditor.Octrees {
 
         public static bool operator ==(OctNodeData one, OctNodeData other) {
             return (
-                other.filled == one.filled &&
                 other.type == one.type &&
                 other.signedDist == one.signedDist &&
                 other.childPosition == one.childPosition
@@ -462,17 +440,10 @@ namespace ReefEditor.Octrees {
         }
         public static bool operator !=(OctNodeData one, OctNodeData other) {
             return !(
-                other.filled == one.filled &&
                 other.type == one.type &&
                 other.signedDist == one.signedDist &&
                 other.childPosition == one.childPosition
             );
         }
     }
-
-    public struct DensityCube {
-        public Vector3Int start;
-        public int size;
-        public float densityValue;
-    } 
 }
