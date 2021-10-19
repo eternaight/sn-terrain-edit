@@ -23,6 +23,12 @@ Assets/SavedData/
 # Visual Studio cache directory
 .vs/
 
+# Visual Studio Code cache
+.vscode/
+
+# Jetbrains Rider cache
+.idea/
+
 # Gradle cache directory
 .gradle/
 

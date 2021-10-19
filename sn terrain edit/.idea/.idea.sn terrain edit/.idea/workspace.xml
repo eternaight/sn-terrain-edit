@@ -1,23 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
   <component name="ChangeListManager">
     <list default="true" id="4d4373a6-d89e-4dc3-8772-2550990b0432" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/.idea.sn terrain edit/.idea/indexLayout.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.sn terrain edit/.idea/indexLayout.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.idea.sn terrain edit/.idea/modules.xml" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/.idea.sn terrain edit/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.sn terrain edit/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.idea.sn terrain edit/riderModule.iml" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/Assets/Materials/GizmoBoundary.mat" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Materials/GizmoBoundary.mat" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Materials/GizmoBrush.mat" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Materials/GizmoBrush.mat" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Modules/protobuf-net.Core.dll.meta" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Modules/protobuf-net.Core.dll.meta" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Assets/Scenes/Main.unity" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/Main.unity" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/Scripts/Asset Loading/Asset Studio Scripts/AssetStudio.PInvoke/AssetStudio.PInvoke.csproj.meta" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/Scripts/Asset Loading/Asset Studio Scripts/AssetStudio.PInvoke/bin/Debug.meta" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/Scripts/Asset Loading/Asset Studio Scripts/AssetStudio.PInvoke/obj.meta" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/Scripts/Asset Loading/Asset Studio Scripts/AssetStudio/AssetStudio.csproj.meta" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/Scripts/Asset Loading/Asset Studio Scripts/AssetStudio/bin/Debug.meta" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/Scripts/Asset Loading/Asset Studio Scripts/AssetStudio/obj.meta" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/Scripts/BatchReadWriter.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scripts/BatchReadWriter.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/Scripts/Octrees/Octree.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scripts/Octrees/Octree.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/Scripts/UI/EditorUI.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scripts/UI/EditorUI.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/Scripts/VoxelTech/VoxelMesh.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scripts/VoxelTech/VoxelMesh.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scripts/Asset Loading/Asset Studio Scripts/AssetStudio.PInvoke/bin.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scripts/Asset Loading/Asset Studio Scripts/AssetStudio/bin.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scripts/Asset Loading/SNProtobufBehaviour.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scripts/Asset Loading/SNProtobufBehaviour.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Packages/packages-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/Packages/packages-lock.json" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ProjectSettings/QualitySettings.asset" beforeDir="false" afterPath="$PROJECT_DIR$/ProjectSettings/QualitySettings.asset" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -36,6 +34,10 @@
       <filtered-out-file-type name="COMMIT_BY_MESSAGE" />
     </file-type-list>
   </component>
+  <component name="HighlightingSettingsPerFile">
+    <setting file="file://$PROJECT_DIR$/Assets/Scripts/Asset Loading/SNProtobufContracts.cs" root0="FORCE_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/Assets/Scripts/Asset Loading/SNProtobufSerializer.cs" root0="FORCE_HIGHLIGHTING" />
+  </component>
   <component name="ProjectId" id="1jhQTjOGZYDFVHsRFlAcuVLj4Ih" />
   <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
   <component name="ProjectViewState">
@@ -43,9 +45,16 @@
     <option name="showLibraryContents" value="true" />
   </component>
   <component name="PropertiesComponent">
+    <property name="ASKED_ADD_EXTERNAL_FILES" value="true" />
     <property name="Discover.Launch.Via.Unity" value="true" />
     <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
+    <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
     <property name="WebServerToolWindowFactoryState" value="false" />
+    <property name="node.js.detected.package.eslint" value="true" />
+    <property name="node.js.detected.package.tslint" value="true" />
+    <property name="node.js.selected.package.eslint" value="(autodetect)" />
+    <property name="node.js.selected.package.tslint" value="(autodetect)" />
+    <property name="nodejs_package_manager_path" value="npm" />
     <property name="vue.rearranger.settings.migration" value="true" />
   </component>
   <component name="RunManager" selected="Attach to Unity Editor.Attach to Unity Editor">
@@ -87,6 +96,13 @@
       <updated>1604253875367</updated>
       <workItem from="1604253926801" duration="1000" />
       <workItem from="1630086009127" duration="1941000" />
+      <workItem from="1631115037533" duration="3737000" />
+      <workItem from="1631118871726" duration="911000" />
+      <workItem from="1631471029461" duration="2344000" />
+      <workItem from="1631973598573" duration="1648000" />
+      <workItem from="1632120480181" duration="1356000" />
+      <workItem from="1632291040173" duration="2981000" />
+      <workItem from="1632466538813" duration="3044000" />
     </task>
     <servers />
   </component>
@@ -96,7 +112,20 @@
   <component name="UnityCheckinConfiguration" checkUnsavedScenes="false" />
   <component name="UnityProjectConfiguration" hasMinimizedUI="true" />
   <component name="UnityUnitTestConfiguration" currentTestLauncher="EditMode" />
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+    <option name="oldMeFiltersMigrated" value="true" />
+  </component>
   <component name="VcsManagerConfiguration">
+    <option name="ADD_EXTERNAL_FILES_SILENTLY" value="true" />
     <option name="CLEAR_INITIAL_COMMIT_MESSAGE" value="true" />
   </component>
 </project>
