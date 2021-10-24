@@ -62,6 +62,9 @@ namespace ReefEditor.VoxelTech {
         public VoxelGrid GetVoxelGrid(Vector3Int containerIndex) {
             return octreeContainers[Globals.LinearIndex(containerIndex.x, containerIndex.y, containerIndex.z, octreeCounts)].grid;
         }
+        public Mesh GetMesh(Vector3Int containerIndex) {
+            return octreeContainers[Globals.LinearIndex(containerIndex.x, containerIndex.y, containerIndex.z, octreeCounts)].mesh;
+        }
 
         public void UpdateFullGrids() {
             foreach (PointContainer container in octreeContainers) {
@@ -122,6 +125,8 @@ namespace ReefEditor.VoxelTech {
             // other objects
             public Bounds bounds;
             GameObject meshObj;
+
+            public Mesh mesh => meshObj.GetComponent<MeshFilter>().mesh;
 
             public PointContainer(Transform _voxelandTf, Vector3Int _octreeIndex, Vector3Int _batchIndex) {
                 octreeIndex = _octreeIndex;

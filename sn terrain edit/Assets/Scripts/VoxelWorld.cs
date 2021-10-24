@@ -141,17 +141,26 @@ namespace ReefEditor {
             Camera.main.gameObject.SendMessage("OnRegionLoad");
         }
 
-        public static void ExportRegion(bool doPatch) {
-            world.StartCoroutine(world.ExportRegionCoroutine(doPatch));
+        public static void ExportRegion(int mode) {
+            world.StartCoroutine(world.ExportRegionCoroutine(mode));
         }
-        IEnumerator ExportRegionCoroutine(bool doPatch) {
-            if (doPatch) {
-                yield return StartCoroutine(BatchReadWriter.readWriter.WriteOctreePatchCoroutine(metaspace));
-            } else {
-                foreach (VoxelMesh batch in metaspace.meshes) {
-                    batch.Write();
-                    yield return null;
-                }
+        IEnumerator ExportRegionCoroutine(int mode) {
+            switch (mode) {
+                case 0:
+                    foreach (VoxelMesh batch in metaspace.meshes) {
+                        batch.Write();
+                        yield return null;
+                    }
+                    break;
+                case 1:
+                    yield return StartCoroutine(BatchReadWriter.readWriter.WriteOctreePatchCoroutine(metaspace));
+                    break;
+                case 2:
+                    ExportFBX.ExportMetaspace(metaspace, Globals.instance.batchOutputPath);
+                    break;
+                default:
+                    Debug.LogError("Unexpected export mode!");
+                    break;
             }
 
             OnRegionExported?.Invoke();

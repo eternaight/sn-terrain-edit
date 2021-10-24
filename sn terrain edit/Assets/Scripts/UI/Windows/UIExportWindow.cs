@@ -36,7 +36,8 @@ namespace ReefEditor.UI {
 
             VoxelWorld.OnRegionExported += EditorUI.DisableStatusBar;
             EditorUI.UpdateStatusBar("Exporting...", 1);
-            VoxelWorld.ExportRegion(modeSelection.selection == 1);
+
+            VoxelWorld.ExportRegion(modeSelection.selection);
         }
 
         public void OnCheckboxInteract() {
@@ -44,7 +45,7 @@ namespace ReefEditor.UI {
         }
 
         public void OnModeChanged() {
-            if (modeSelection.selection == 1) {
+            if (modeSelection.selection != 0) {
                 checkboxGroup.SetActive(false);
                 Globals.instance.exportIntoGame = false;
             } else {
