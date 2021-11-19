@@ -2,7 +2,6 @@
   "dependencies": {
     "com.unity.2d.sprite": "1.0.0",
     "com.unity.collab-proxy": "1.2.16",
-    "com.unity.formats.fbx": "4.1.1",
     "com.unity.ide.rider": "1.1.4",
     "com.unity.ide.vscode": "1.2.3",
     "com.unity.render-pipelines.universal": "7.3.1",

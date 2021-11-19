@@ -12,5 +12,9 @@ namespace ReefEditor.UI {
             check = !check; 
             checkImage.enabled = check;
         }
+        public void SetState(bool _check) {
+            check = _check;
+            checkImage.enabled = _check;
+        }
     }
 }

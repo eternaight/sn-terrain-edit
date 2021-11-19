@@ -8,8 +8,12 @@ namespace ReefEditor.UI {
         public GameObject errorPrefab;
         public Color[] uiColors;
 
-        void Start() {
+        private void Awake() {
             inst = this;
+        }
+
+        private void Start() {
+
         }
 
         public static void UpdateStatusBar(string title, float val) {
