@@ -15,23 +15,38 @@ namespace ReefEditor.UI {
                 return;
             }
 
+            switch (modeSelection.selection) {
+                case 0:
+                    // Export some .optoctrees files
+                    string[] paths = StandaloneFileBrowser.OpenFolderPanel("Select export folder...", Application.dataPath, false);
+                    if (paths.Length == 0) {
+                        // user cancels
+                        return;
+                    }
+                    Globals.instance.userBatchOutputPath = paths[0];
+                    break;
+                case 1:
+                    // Save .optoctreepatch file
+                    string path = StandaloneFileBrowser.SaveFilePanel("Save patch as...", Application.dataPath, "TerrainPatch", "optoctreepatch");
+                    if (string.IsNullOrEmpty(path)) {
+                        // user cancels
+                        return;
+                    }
+                    Globals.instance.userBatchOutputPath = path;
+                    break;
+                case 2:
+                    // Save .fbx file
+                    path = StandaloneFileBrowser.SaveFilePanel("Save mesh as...", Application.dataPath, "SubnauticaScene", "fbx");
+                    if (string.IsNullOrEmpty(path)) {
+                        // user cancels
+                        return;
+                    }
+                    Globals.instance.userBatchOutputPath = path;
+                    break;
+            }
             if (modeSelection.selection == 1) {
-                // Export patch
-                string path = StandaloneFileBrowser.SaveFilePanel("Save patch as...", Application.dataPath, "TerrainPatch", "optoctreepatch");
-                if (string.IsNullOrEmpty(path)) {
-                    // user cancels
-                    return;
-                }
-                Globals.instance.userBatchOutputPath = path;
             }
             else {
-                // Export some optoctrees files
-                string[] paths = StandaloneFileBrowser.OpenFolderPanel("Select export folder...", Application.dataPath, false);
-                if (paths.Length == 0) {
-                    // user cancels
-                    return;
-                }
-                Globals.instance.userBatchOutputPath = paths[0];
             }
 
             VoxelWorld.OnRegionExported += EditorUI.DisableStatusBar;

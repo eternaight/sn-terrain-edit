@@ -1,11 +1,15 @@
 ﻿using ReefEditor.VoxelTech;
+using ReefEditor.UI;
 using Autodesk.Fbx;
 using System.Diagnostics;
 using UnityEngine;
+using System.Collections.Generic;
+using System.Collections;
+using System.IO;
 
 namespace ReefEditor {
     public static class ExportFBX {
-        public static void ExportMetaspace(VoxelMetaspace metaspace, string fbxFilePath) {
+        public static IEnumerator ExportMetaspaceAsync(VoxelMetaspace metaspace, string fbxFilePath) {
 
             Stopwatch sw = new Stopwatch();
             sw.Start();
@@ -18,14 +22,17 @@ namespace ReefEditor {
                 using (FbxExporter exporter = FbxExporter.Create(fbxManager, "myExporter")) {
 
                     // Initialize the exporter.
-                    bool status = exporter.Initialize(fbxFilePath + "/reefScene.fbx", -1, fbxManager.GetIOSettings());
+                    bool status = exporter.Initialize(fbxFilePath, -1, fbxManager.GetIOSettings());
 
                     // Create a new scene to export
                     FbxScene scene = FbxScene.Create(fbxManager, "myScene");
 
                     // Populate the scene
                     FbxNode rootNode = scene.GetRootNode();
-                    rootNode.AddChild(CreateNodeFromMetaspace(fbxManager, metaspace));
+
+                    var node = FbxNode.Create(fbxManager, "World Root");
+                    yield return CreateNodeFromMetaspace(fbxManager, metaspace, fbxFilePath, node);
+                    rootNode.AddChild(node);
 
                     // Export the scene to the file.
                     exporter.Export(scene);
@@ -34,13 +41,16 @@ namespace ReefEditor {
 
             sw.Stop();
             UnityEngine.Debug.Log($"Exporting fbx scene took {sw.ElapsedMilliseconds / 1000f}s");
+            yield break;
         }
 
-        private static FbxNode CreateNodeFromMetaspace(FbxManager fbxManager, VoxelMetaspace metaspace) {
+        private static IEnumerator CreateNodeFromMetaspace(FbxManager fbxManager, VoxelMetaspace metaspace, string fbxFilePath, FbxNode node) {
 
-            if (metaspace.meshes.Length == 0) return null;
+            if (metaspace.meshes.Length == 0) {
+                yield break;
+            }
 
-            FbxNode metaspaceRootNode = FbxNode.Create(fbxManager, "World Root");
+            Dictionary<string, FbxSurfacePhong> materialDict = new Dictionary<string, FbxSurfacePhong>();
 
             foreach (VoxelMesh voxelMesh in metaspace.meshes) {
 
@@ -49,8 +59,30 @@ namespace ReefEditor {
                 for (int y = 0; y < voxelMesh.octreeCounts.y; y++) {
                     for (int z = 0; z < voxelMesh.octreeCounts.z; z++) {
                         for (int x = 0; x < voxelMesh.octreeCounts.x; x++) {
-                            FbxNode octreeNode = CreateNodeFromUnityMesh(fbxManager, voxelMesh.GetMesh(new Vector3Int(x, y, z)), $"Octree Mesh {x}-{y}-{z}");
+
+                            GameObject obj = voxelMesh.GetContainerObject(new Vector3Int(x, y, z));
+                            FbxNode octreeNode = FbxNode.Create(fbxManager, $"Octree Mesh {x}-{y}-{z}");
+
+                            // Create/Add materials
+                            foreach (Material mat in obj.GetComponent<MeshRenderer>().materials) {
+                                if (!materialDict.ContainsKey(mat.name)) {
+                                    materialDict.Add(mat.name, FbxMaterialFromUnity(fbxManager, mat, fbxFilePath));
+                                }
+
+                                octreeNode.AddMaterial(materialDict[mat.name]);
+                            }
+
+                            // Add polygons
+                            FbxMesh fbxMesh = CreateNodeFromUnityMesh(fbxManager, obj.GetComponent<MeshFilter>().mesh);
+                            octreeNode.SetNodeAttribute(fbxMesh);
+                            octreeNode.SetShadingMode(FbxNode.EShadingMode.eFlatShading);
+                            octreeNode.LclScaling.Set(new FbxColor(1, 1, 1));
+
                             batchRoot.AddChild(octreeNode);
+
+                            // Update info
+                            EditorUI.UpdateStatusBar("Exporting FBX mesh...", (x + z * 5 + y * 25) / 125f);
+                            yield return null;
                         }
                     }
                 }
@@ -58,17 +90,16 @@ namespace ReefEditor {
                 var localBatchPos = (voxelMesh.batchIndex - VoxelWorld.start) * VoxelWorld.CONTAINERS_PER_SIDE * VoxelWorld.OCTREE_SIDE;
                 FbxDouble3 batchPosition = new FbxDouble3(localBatchPos.x, localBatchPos.y, localBatchPos.z);
                 batchRoot.LclTranslation.Set(batchPosition);
-                metaspaceRootNode.AddChild(batchRoot);
+                node.AddChild(batchRoot);
             }
 
-            return metaspaceRootNode;
+            EditorUI.DisableStatusBar();
         }
 
-        private static FbxNode CreateNodeFromUnityMesh(FbxManager fbxManager, Mesh mesh, string nodename) {
+        private static FbxMesh CreateNodeFromUnityMesh(FbxManager fbxManager, Mesh mesh) {
 
             FbxMesh fbxMesh = FbxMesh.Create(fbxManager, mesh.name);
 
-            Vector3[] vertices = mesh.vertices;
             for (int i = 0; i < mesh.vertexCount; i++) {
                 Vector3 vertex = mesh.vertices[i];
                 fbxMesh.SetControlPointAt(new FbxVector4(vertex.x, vertex.y, vertex.z), i);
@@ -96,7 +127,7 @@ namespace ReefEditor {
 
                 for (int p = 0; p < totalPolygons; p++) {
 
-                    fbxMesh.BeginPolygon();
+                    fbxMesh.BeginPolygon(submesh);
                     fbxMesh.AddPolygon(indices[p * mod]);
                     fbxMesh.AddPolygon(indices[p * mod + 1]);
                     fbxMesh.AddPolygon(indices[p * mod + 2]);
@@ -108,12 +139,82 @@ namespace ReefEditor {
                 }
             }
 
-            FbxNode cubeNode = FbxNode.Create(fbxManager, nodename);
-            cubeNode.SetNodeAttribute(fbxMesh);
-            cubeNode.SetShadingMode(FbxNode.EShadingMode.eFlatShading);
-            cubeNode.LclScaling.Set(new FbxColor(1, 1, 1));
+            return fbxMesh;
+        }
 
-            return cubeNode;
+        private static FbxSurfacePhong FbxMaterialFromUnity(FbxManager fbxManager, Material mat, string exportPath) {
+            FbxSurfacePhong fbxMaterial = FbxSurfacePhong.Create(fbxManager, "mat");
+            fbxMaterial.Emissive.Set(new FbxDouble3(0, 0, 0));
+            fbxMaterial.Ambient.Set(new FbxDouble3(0, 0, 0));
+            fbxMaterial.TransparencyFactor.Set(0);
+            fbxMaterial.ShadingModel.Set("Phong");
+            fbxMaterial.Shininess.Set(0.5);
+
+            //IncludeTextures(fbxManager, mat, exportPath, fbxMaterial);
+
+            return fbxMaterial;
+        }
+
+        private static void IncludeTextures(FbxManager fbxManager, Material unityMaterial, string exportPath, FbxSurfacePhong fbxMaterial) {
+            switch (unityMaterial.shader.name) {
+                case "Shader Graphs/Triplanar":
+                    ExportTexture(fbxManager, unityMaterial, exportPath, fbxMaterial, "_MainTex", false);
+                    ExportTexture(fbxManager, unityMaterial, exportPath, fbxMaterial, "_NormalMap", true);
+                    return;
+                case "Shader Graphs/TriplanarCapped":
+                    ExportTexture(fbxManager, unityMaterial, exportPath, fbxMaterial, "_MainTex", false);
+                    ExportTexture(fbxManager, unityMaterial, exportPath, fbxMaterial, "_NormalMap", true);
+                    return;
+                case "Universal Render Pipeline/Lit":
+                    ExportTexture(fbxManager, unityMaterial, exportPath, fbxMaterial, "_MainTex", false);
+                    ExportTexture(fbxManager, unityMaterial, exportPath, fbxMaterial, "_BumpMap", true);
+                    return;
+                default:
+                    throw new System.NotImplementedException("Unsupported material with shader: " + unityMaterial.shader.name);
+            }
+        }
+
+        private static bool ExportTexture (FbxManager fbxManager, Material unityMaterial, string exportPath, FbxSurfacePhong fbxMaterial, string textureName, bool normal) {
+            
+            if (!unityMaterial) return false;
+
+            string textureUniqueName = unityMaterial.name + "_" + textureName;
+
+            // TODO: Look for ways to not have this require saving the texture to a file
+
+            var unityTexture = unityMaterial.GetTexture(textureName) as Texture2D;
+            if (!unityTexture) return false;
+
+            var renderTexture = RenderTexture.GetTemporary(unityTexture.width, unityTexture.height);
+            Graphics.Blit(unityTexture, renderTexture);
+            RenderTexture.active = renderTexture;
+            var destination = new Texture2D(unityTexture.width, unityTexture.height, TextureFormat.RGB24, true);
+            destination.ReadPixels(new Rect(0, 0, renderTexture.width, renderTexture.height), 0, 0);
+            destination.Apply();
+
+            // Dirty hack
+            var texturePath = Path.Combine(Directory.GetParent(exportPath).FullName, textureUniqueName + ".png");
+            File.WriteAllBytes(texturePath, destination.EncodeToPNG());
+
+            FbxFileTexture fbxTexture = FbxFileTexture.Create(fbxManager, textureUniqueName);
+            fbxTexture.SetFileName(texturePath);
+            fbxTexture.SetTextureUse(FbxTexture.ETextureUse.eStandard);
+            fbxTexture.SetMappingType(FbxTexture.EMappingType.eUV);
+            fbxTexture.SetMaterialUse(FbxFileTexture.EMaterialUse.eModelMaterial);
+            fbxTexture.SetSwapUV(false);
+            fbxTexture.SetTranslation(0, 0);
+            fbxTexture.SetRotation(0, 0);
+            fbxTexture.SetScale(1, 1);
+
+            if (!normal) {
+                fbxMaterial.Diffuse.ConnectSrcObject(fbxTexture);
+            } 
+            else
+            {
+                fbxMaterial.NormalMap.ConnectSrcObject(fbxTexture);
+            }
+
+            return true;
         }
     }
 }

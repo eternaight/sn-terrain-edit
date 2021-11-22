@@ -156,7 +156,7 @@ namespace ReefEditor {
                     yield return StartCoroutine(BatchReadWriter.readWriter.WriteOctreePatchCoroutine(metaspace));
                     break;
                 case 2:
-                    ExportFBX.ExportMetaspace(metaspace, Globals.instance.batchOutputPath);
+                    yield return StartCoroutine(ExportFBX.ExportMetaspaceAsync(metaspace, Globals.instance.batchOutputPath));
                     break;
                 default:
                     Debug.LogError("Unexpected export mode!");
