@@ -10,7 +10,7 @@ namespace ReefEditor.UI {
         GameObject checkboxGroup => transform.GetChild(2).GetChild(1).gameObject;
 
         public void Export() {
-            if (!VoxelWorld.aRegionIsLoaded) {
+            if (!VoxelWorld.regionLoaded) {
                 EditorUI.DisplayErrorMessage("Nothing to export!");
                 return;
             }
@@ -88,13 +88,13 @@ namespace ReefEditor.UI {
             base.EnableWindow();
         }
         private void SetFileCountStrings() {
-            if (!VoxelWorld.aRegionIsLoaded) {
+            if (!VoxelWorld.regionLoaded) {
                 transform.GetChild(2).GetChild(0).GetChild(2).GetChild(0).GetComponent<Text>().text = "No batches loaded";
                 transform.GetChild(2).GetChild(0).GetChild(2).GetChild(1).gameObject.SetActive(false);
                 return;
             }
 
-            int batchCount = VoxelWorld.regionSize.x * VoxelWorld.regionSize.y * VoxelWorld.regionSize.z;
+            int batchCount = VoxelWorld.CountBatches();
             if (batchCount == 1)
                 transform.GetChild(2).GetChild(0).GetChild(2).GetChild(0).GetComponent<Text>().text = "1 file";
             else

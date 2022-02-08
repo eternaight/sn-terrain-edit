@@ -54,43 +54,30 @@ namespace ReefEditor {
 
             foreach (VoxelMesh voxelMesh in metaspace.meshes) {
 
-                FbxNode batchRoot = FbxNode.Create(fbxManager, $"Batch {voxelMesh.batchIndex}");
+                GameObject obj = voxelMesh.gameObject;
+                FbxNode octreeNode = FbxNode.Create(fbxManager, obj.name);
 
-                for (int y = 0; y < voxelMesh.octreeCounts.y; y++) {
-                    for (int z = 0; z < voxelMesh.octreeCounts.z; z++) {
-                        for (int x = 0; x < voxelMesh.octreeCounts.x; x++) {
-
-                            GameObject obj = voxelMesh.GetContainerObject(new Vector3Int(x, y, z));
-                            FbxNode octreeNode = FbxNode.Create(fbxManager, $"Octree Mesh {x}-{y}-{z}");
-
-                            // Create/Add materials
-                            foreach (Material mat in obj.GetComponent<MeshRenderer>().materials) {
-                                if (!materialDict.ContainsKey(mat.name)) {
-                                    materialDict.Add(mat.name, FbxMaterialFromUnity(fbxManager, mat, fbxFilePath));
-                                }
-
-                                octreeNode.AddMaterial(materialDict[mat.name]);
-                            }
-
-                            // Add polygons
-                            FbxMesh fbxMesh = CreateNodeFromUnityMesh(fbxManager, obj.GetComponent<MeshFilter>().mesh);
-                            octreeNode.SetNodeAttribute(fbxMesh);
-                            octreeNode.SetShadingMode(FbxNode.EShadingMode.eFlatShading);
-                            octreeNode.LclScaling.Set(new FbxColor(1, 1, 1));
-
-                            batchRoot.AddChild(octreeNode);
-
-                            // Update info
-                            EditorUI.UpdateStatusBar("Exporting FBX mesh...", (x + z * 5 + y * 25) / 125f);
-                            yield return null;
-                        }
+                // Create/Add materials
+                foreach (Material mat in obj.GetComponent<MeshRenderer>().materials) {
+                    if (!materialDict.ContainsKey(mat.name)) {
+                        materialDict.Add(mat.name, FbxMaterialFromUnity(fbxManager, mat, fbxFilePath));
                     }
+
+                    octreeNode.AddMaterial(materialDict[mat.name]);
                 }
 
-                var localBatchPos = (voxelMesh.batchIndex - VoxelWorld.start) * VoxelWorld.CONTAINERS_PER_SIDE * VoxelWorld.OCTREE_SIDE;
-                FbxDouble3 batchPosition = new FbxDouble3(localBatchPos.x, localBatchPos.y, localBatchPos.z);
-                batchRoot.LclTranslation.Set(batchPosition);
-                node.AddChild(batchRoot);
+                // Add polygons
+                FbxMesh fbxMesh = CreateNodeFromUnityMesh(fbxManager, obj.GetComponent<MeshFilter>().mesh);
+                octreeNode.SetNodeAttribute(fbxMesh);
+                octreeNode.SetShadingMode(FbxNode.EShadingMode.eFlatShading);
+                octreeNode.LclScaling.Set(new FbxColor(1, 1, 1));
+                octreeNode.LclTranslation.Set(new FbxDouble3(obj.transform.position.x, obj.transform.position.y, obj.transform.position.z));
+
+                // Update info
+                EditorUI.UpdateStatusBar("Exporting FBX mesh...", 0.5f);
+                yield return null;
+
+                node.AddChild(octreeNode);
             }
 
             EditorUI.DisableStatusBar();

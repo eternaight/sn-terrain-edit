@@ -29,7 +29,7 @@ namespace ReefEditor {
         }
 
         public void PoseCamera() {
-            Camera.main.transform.parent.position = (VoxelWorld.end - VoxelWorld.start + Vector3.one) * VoxelWorld.OCTREE_SIDE * VoxelWorld.CONTAINERS_PER_SIDE / 2;
+            Camera.main.transform.parent.position = (Vector3)VoxelWorld.RealSize() * 0.5f;
         }
 
         void Update() {
@@ -74,7 +74,7 @@ namespace ReefEditor {
         bool IsMouseOverUI() => EventSystem.current.IsPointerOverGameObject();
         Vector3 GetMoveVector() => new Vector3(Input.GetAxis("Horizontal"), Input.GetAxis("Lateral"), Input.GetAxis("Vertical"));
 
-        void Move() {
+        private void Move() {
 
             speed = Input.GetKey(KeyCode.LeftShift) ? 20 : 10;
 
@@ -84,13 +84,12 @@ namespace ReefEditor {
             transform.parent.position = CapPosition(transform.parent.position);
         }
 
-        Vector3 CapPosition(Vector3 pos) {
-            Vector3 regionEnd = VoxelWorld.end;
-            Vector3 regionStart = VoxelWorld.start;
+        private Vector3 CapPosition(Vector3 pos) {
+            var size = VoxelWorld.RealSize();
 
-            float cappedPosX = Mathf.Clamp(pos.x, 0, VoxelWorld.OCTREE_SIDE * VoxelWorld.CONTAINERS_PER_SIDE * (regionEnd.x - regionStart.x + 1));
-            float cappedPosY = Mathf.Clamp(pos.y, 0, VoxelWorld.OCTREE_SIDE * VoxelWorld.CONTAINERS_PER_SIDE * (regionEnd.y - regionStart.y + 1));
-            float cappedPosZ = Mathf.Clamp(pos.z, 0, VoxelWorld.OCTREE_SIDE * VoxelWorld.CONTAINERS_PER_SIDE * (regionEnd.z - regionStart.z + 1));
+            float cappedPosX = Mathf.Clamp(pos.x, 0, size.x);
+            float cappedPosY = Mathf.Clamp(pos.y, 0, size.y);
+            float cappedPosZ = Mathf.Clamp(pos.z, 0, size.z);
             return new Vector3(cappedPosX, cappedPosY, cappedPosZ);
         }
     }

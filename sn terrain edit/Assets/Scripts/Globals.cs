@@ -100,7 +100,10 @@ namespace ReefEditor {
         }
 
         public static int LinearIndex(int x, int y, int z, int dim) {
-            return x + y * dim + z * dim * dim;
+            return LinearIndex(x, y, z, Vector3Int.one * dim);
+        }
+        public static int LinearIndex(Vector3Int index, Vector3Int dim) {
+            return LinearIndex(index.x, index.y, index.z, dim);
         }
         public static int LinearIndex(int x, int y, int z, Vector3Int dim) {
             return x + y * dim.x + z * dim.x * dim.y;
@@ -132,7 +135,7 @@ namespace ReefEditor {
                 planes = instance.boundaryPlanes;
             }
 
-            Vector3 worldCenter = VoxelWorld.regionSize * VoxelWorld.OCTREE_SIDE * VoxelWorld.CONTAINERS_PER_SIDE / 2;
+            Vector3 worldCenter = (Vector3)VoxelWorld.RealSize() * 0.5f;
 
             planes[0].transform.position = new Vector3(worldCenter.x, 0, worldCenter.z);
             planes[0].transform.localScale = new Vector3(worldCenter.x * .2f, 1, worldCenter.z * .2f);
