@@ -146,7 +146,6 @@ namespace ReefEditor {
 
             int submeshCount = blocktypes.Length;
             int nextStart = 0;
-            List<SubMeshDescriptor> subMeshes = new List<SubMeshDescriptor>();
             
             Mesh mesh = new Mesh();
             mesh.subMeshCount = submeshCount;

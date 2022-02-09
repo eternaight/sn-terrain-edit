@@ -2,10 +2,8 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
-using ReefEditor.Octrees;
+using ReefEditor.VoxelEditing;
 using ReefEditor.UI;
-using ReefEditor.VoxelTech;
-using static ReefEditor.Octrees.OctNode;
 
 namespace ReefEditor {
     public class BatchReadWriter : MonoBehaviour {
@@ -94,12 +92,12 @@ namespace ReefEditor {
 
         public IEnumerator WriteOptOctreesCoroutine(VoxelMetaspace metaspace) {
             foreach (var batchId in metaspace.BatchIndices()) {
-                var nodes = metaspace.IterateThroughBatch(batchId);
+                var nodes = metaspace.OctreesOfBatch(batchId);
                 WriteOptoctrees(batchId, nodes);
                 yield return null;
             }
         } 
-        private bool WriteOptoctrees(Vector3 batchIndex, IEnumerator<VoxelMesh> rootNodes) { 
+        private bool WriteOptoctrees(Vector3 batchIndex, IEnumerator<OctNode> rootNodes) { 
             string batchname = string.Format("\\compiled-batch-{0}-{1}-{2}.optoctrees", batchIndex.x, batchIndex.y, batchIndex.z);
             busy = true;
             
@@ -109,7 +107,7 @@ namespace ReefEditor {
             writer.Write(4);
             
             while (rootNodes.MoveNext()) { 
-                WriteOctree(writer, rootNodes.Current.GetOctree());
+                WriteOctree(writer, rootNodes.Current);
             }
 
             writer.Close();
@@ -120,26 +118,22 @@ namespace ReefEditor {
         public IEnumerator WriteOctreePatchCoroutine(VoxelMetaspace metaspace) {
             
             busy = true;
-            Debug.Log($"Writing {metaspace.meshes.Length} batch patches as {Globals.instance.batchOutputPath}");
+            Debug.Log($"Writing world patch as {Globals.instance.batchOutputPath}");
 
             BinaryWriter writer = new BinaryWriter(File.Open(Globals.instance.batchOutputPath, FileMode.Create));
             // write version
             writer.Write(0u);
-
-            foreach (VoxelMesh octreeMesh in metaspace.meshes) {
-                octreeMesh.UpdateOctreeDensity();
-            }
     	    
             foreach (var batchId in metaspace.BatchIndices()) {
-                var modifiedMeshes = metaspace.IterateThroughBatch(batchId);
+                var modifiedNodes = metaspace.OctreesOfBatch(batchId);
                 // load original nodes from file?
                 var originalNodes = ReadBatch(batchId);
 
                 // get changed octrees data
                 List<OctNode> batchChanges = new List<OctNode>();
-                while (originalNodes.MoveNext() & modifiedMeshes.MoveNext()) {
-                    if (!modifiedMeshes.Current.GetOctree().IdenticalTo(originalNodes.Current)) {
-                        batchChanges.Add(modifiedMeshes.Current.GetOctree());
+                while (originalNodes.MoveNext() & modifiedNodes.MoveNext()) {
+                    if (!modifiedNodes.Current.IdenticalTo(originalNodes.Current)) {
+                        batchChanges.Add(modifiedNodes.Current);
                     }
                 }
                 

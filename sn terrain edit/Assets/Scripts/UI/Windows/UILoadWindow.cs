@@ -32,9 +32,9 @@ namespace ReefEditor.UI {
         }
 
         IEnumerator LoadCoroutine(Vector3Int start, Vector3Int end) {
-            VoxelWorld.LoadRegion(start, end);
-            while (VoxelWorld.loadInProgress) {
-                EditorUI.UpdateStatusBar(VoxelWorld.loadingState, VoxelWorld.loadingProgress);
+            VoxelMetaspace.instance.LoadRegion(start, end);
+            while (VoxelMetaspace.instance.loadInProgress) {
+                EditorUI.UpdateStatusBar(VoxelMetaspace.instance.loadingState, VoxelMetaspace.instance.loadingProgress);
                 yield return null;
             }
             EditorUI.DisableStatusBar();

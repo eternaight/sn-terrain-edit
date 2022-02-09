@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 
 namespace ReefEditor {
-    public static class OctreeRaycasting {
+    public static class CollisionUtilities {
         public static bool RayIntersectsBox(Ray ray, Vector3 boxStart, Vector3 boxEnd) {
             
             // Ray marching yeah why not

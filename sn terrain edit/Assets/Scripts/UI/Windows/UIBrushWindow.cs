@@ -1,4 +1,5 @@
-﻿using UnityEngine.UI;
+﻿using ReefEditor.VoxelEditing;
+using UnityEngine.UI;
 
 namespace ReefEditor.UI {
     public class UIBrushWindow : UIWindow {

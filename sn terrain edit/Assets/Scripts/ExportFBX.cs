@@ -1,15 +1,15 @@
-﻿using ReefEditor.VoxelTech;
-using ReefEditor.UI;
+﻿using ReefEditor.UI;
 using Autodesk.Fbx;
 using System.Diagnostics;
 using UnityEngine;
 using System.Collections.Generic;
 using System.Collections;
 using System.IO;
+using ReefEditor.Streaming;
 
 namespace ReefEditor {
     public static class ExportFBX {
-        public static IEnumerator ExportMetaspaceAsync(VoxelMetaspace metaspace, string fbxFilePath) {
+        public static IEnumerator ExportMetaspaceAsync(TerrainStreamer streamer, string fbxFilePath) {
 
             Stopwatch sw = new Stopwatch();
             sw.Start();
@@ -31,7 +31,7 @@ namespace ReefEditor {
                     FbxNode rootNode = scene.GetRootNode();
 
                     var node = FbxNode.Create(fbxManager, "World Root");
-                    yield return CreateNodeFromMetaspace(fbxManager, metaspace, fbxFilePath, node);
+                    yield return CreateTerrainRoot(fbxManager, streamer, fbxFilePath, node);
                     rootNode.AddChild(node);
 
                     // Export the scene to the file.
@@ -44,17 +44,17 @@ namespace ReefEditor {
             yield break;
         }
 
-        private static IEnumerator CreateNodeFromMetaspace(FbxManager fbxManager, VoxelMetaspace metaspace, string fbxFilePath, FbxNode node) {
+        private static IEnumerator CreateTerrainRoot(FbxManager fbxManager, TerrainStreamer streamer, string fbxFilePath, FbxNode node) {
 
-            if (metaspace.meshes.Length == 0) {
+            if (streamer.meshes.Length == 0) {
                 yield break;
             }
 
             Dictionary<string, FbxSurfacePhong> materialDict = new Dictionary<string, FbxSurfacePhong>();
 
-            foreach (VoxelMesh voxelMesh in metaspace.meshes) {
+            foreach (OctreeMesh octreeMesh in streamer.IterateMeshes()) {
 
-                GameObject obj = voxelMesh.gameObject;
+                GameObject obj = octreeMesh.gameObject;
                 FbxNode octreeNode = FbxNode.Create(fbxManager, obj.name);
 
                 // Create/Add materials

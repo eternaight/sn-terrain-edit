@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using ReefEditor.ContentLoading;
+using ReefEditor.VoxelEditing;
 
 namespace ReefEditor.UI {
     public class UIMaterialsWindow : UIWindow {

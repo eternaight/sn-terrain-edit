@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using ReefEditor.VoxelTech;
+using ReefEditor.Streaming;
 
-namespace ReefEditor.Octrees {
+namespace ReefEditor.VoxelEditing {
 
     [Serializable]
     public class OctNode {
@@ -91,39 +91,6 @@ namespace ReefEditor.Octrees {
             }
         }
 
-        public OctNodeData GetNodeDataFromPoint(Vector3 p) {
-            if (ContainsPoint(p)) {
-
-                if (children == null) {
-                    // success case
-                    return data;
-                }
-
-                for (int b = 0; b < 8; b++) {
-                    OctNodeData childdata = children[b].GetNodeDataFromPoint(p);
-
-                    if (!(childdata is null)) {
-                        // success case follow-up
-                        return childdata;
-                    }
-                }
-            }
-
-            // fail case
-            return null;
-        }
-
-        public bool ContainsPoint(Vector3 p) {
-            return OctreeRaycasting.BoxContainsPoint(position, position + Vector3.one * size, p);
-        }
-        public bool ContainsVoxel(Vector3Int voxel) {
-            return (
-                voxel.x >= position.x && voxel.x < position.x + size &&
-                voxel.y >= position.y && voxel.y < position.y + size &&
-                voxel.z >= position.z && voxel.z < position.z + size
-                );
-        }
-
         public int GetMaxDepth(int prevDepth) {
             if (children == null) return prevDepth + 1;
             else {
@@ -141,11 +108,12 @@ namespace ReefEditor.Octrees {
         }
 
 
-        public OctNodeData GetVoxel(Vector3Int voxel) {
-            if (HasChildren) {
+        // About octree heights: 0 = rootx32, 1x16, 2x8, 3x4, 4x2, 5x1. Total of 6 levels.
+        public OctNodeData GetVoxel(Vector3Int voxel, int maxSearchHeight, int height = 0) {
+            if (HasChildren && (height < maxSearchHeight)) {
                 for (int i = 0; i < 8; i++) {
                     if (children[i].ContainsVoxel(voxel)) {
-                        return children[i].GetVoxel(voxel);
+                        return children[i].GetVoxel(voxel, maxSearchHeight, height + 1);
                     }
                 }
                 return null;
@@ -153,21 +121,27 @@ namespace ReefEditor.Octrees {
                 return data;
             }
         }
+        public bool ContainsVoxel(Vector3Int voxel) {
+            return (
+                voxel.x >= position.x && voxel.x < position.x + size &&
+                voxel.y >= position.y && voxel.y < position.y + size &&
+                voxel.z >= position.z && voxel.z < position.z + size
+            );
+        }
 
-        public void DeRasterizeGrid(VoxelGrid grid, int height, int maxHeight) {
+        public void DeRasterizeGrid(VoxelGrid grid, int maxHeight, int height = 0) {
             if (height < maxHeight) {
                 Subdivide();
 
                 for (int b = 0; b < 8; b++) {
-                    children[b].DeRasterizeGrid(grid, height + 1, maxHeight);
+                    children[b].DeRasterizeGrid(grid, maxHeight, height + 1);
                 }
 
                 data = new OctNodeData(MostCommonChildType(), AverageChildDensity(), 0);
 
                 if (IsMonotone()) StripChildren();
             } else {
-                byte[] voxel = grid.GetVoxel(position);
-                data = new OctNodeData(voxel[0], voxel[1], 0);
+                data = grid.GetVoxel(position);
             }
         }
 
@@ -257,88 +231,5 @@ namespace ReefEditor.Octrees {
             new Vector3Int(1, 1, 0),
             new Vector3Int(1, 1, 1)
         };
-    }
-
-    public class OctNodeData {
-
-        public byte type;
-        public byte density;
-        public ushort childPosition;
-
-        public OctNodeData() {
-            type = 0;
-            density = 0;
-            childPosition = 0;
-        }
-        public OctNodeData(byte type, byte signedDistance, ushort childPos) {
-            this.type = type;
-            density = signedDistance;
-            childPosition = childPos;
-        }
-        public OctNodeData(OctNodeData other) {
-            type = other.type;
-            density = other.density;
-            childPosition = other.childPosition;
-        }
-
-        public bool IsBelowSurface() {
-            if (density == 0) {
-                return type > 0;
-            }
-            return density >= 126;
-        }
-        public static bool IsBelowSurface(byte type, byte signedDist) {
-            if (signedDist == 0) {
-                return type > 0;
-            }
-            return signedDist >= 126;
-        }
-
-        public float GetDensity() {
-            if (density == 0) {
-                return (type == 0 ? -1 : 1);
-            }
-            return (density - 126) / 126f;
-        }
-        public static float DecodeDensity(byte densityByte) {
-            return (densityByte - 126) / 126f;
-        }
-        public static byte EncodeDensity(float densityValue) {
-            return (byte)(Mathf.Clamp(densityValue, -1, 1) * 126 + 126);
-        }
-
-        public override string ToString() {
-            return $"OctNode(t: {type}, d: {density}, c: {childPosition})";
-        }
-
-        public override bool Equals(object obj) {
-            if (obj is OctNodeData data) {
-                return (
-                    data.type == type &&
-                    data.density == density &&
-                    data.childPosition == childPosition
-                );
-            }
-            return false;
-        }
-
-        public override int GetHashCode() {
-            return (childPosition * 31 + type) * 31 + density;
-        }
-
-        public static bool operator ==(OctNodeData one, OctNodeData other) {
-            return (
-                other.type == one.type &&
-                other.density == one.density &&
-                other.childPosition == one.childPosition
-            );
-        }
-        public static bool operator !=(OctNodeData one, OctNodeData other) {
-            return (
-                other.type != one.type ||
-                other.density != one.density ||
-                other.childPosition != one.childPosition
-            );
-        }
     }
 }

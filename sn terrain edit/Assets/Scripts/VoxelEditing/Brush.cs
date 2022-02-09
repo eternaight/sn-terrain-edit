@@ -1,8 +1,7 @@
 ﻿using System;
 using UnityEngine;
-using ReefEditor.VoxelTech;
 
-namespace ReefEditor {
+namespace ReefEditor.VoxelEditing {
     public class Brush : MonoBehaviour {
         public static float brushSize = 10;
         public static float minBrushSize = 1;
@@ -87,14 +86,14 @@ namespace ReefEditor {
                 DrawBrushGizmo(hit.point, hit.normal);
                 if (doAction) {
                     if (activeMode == BrushMode.Eyedropper) {
-                        SetBrushMaterial(VoxelWorld.SampleBlocktype(hit.point, ray));
+                        SetBrushMaterial(VoxelMetaspace.instance.SampleBlocktype(hit.point, ray));
                     } else {
                         if (stroke.ReadyForNextAction()) {
 
                             if (stroke.strokeLength == 0) stroke.FirstStroke(hit.point, hit.normal, brushSize, brushStrength, activeMode);
                             else stroke.ContinueStroke(hit.point, activeMode);
 
-                            VoxelMetaspace.metaspace.ApplyDensityAction(stroke);
+                            //VoxelMetaspace.metaspace.ApplyDensityAction(stroke);
                         }
                     }
                 } else {

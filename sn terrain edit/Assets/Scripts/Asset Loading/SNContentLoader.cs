@@ -62,10 +62,9 @@ namespace ReefEditor.ContentLoading {
             contentLoaded = true;
             
             if (updateMeshesOnLoad) {
-                VoxelWorld.StartMetaspaceRegenerate(12, totalTasks);
-                while (VoxelWorld.loadInProgress) {
-                    loadProgress = VoxelWorld.loadingProgress;
-                    loadState = VoxelWorld.loadingState;
+                while (VoxelMetaspace.instance.loadInProgress) {
+                    loadProgress = VoxelMetaspace.instance.loadingProgress;
+                    loadState = VoxelMetaspace.instance.loadingState;
                     yield return null;
                 }
                 updateMeshesOnLoad = false;

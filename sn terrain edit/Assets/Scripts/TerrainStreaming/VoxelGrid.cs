@@ -1,7 +1,6 @@
-﻿using ReefEditor.Octrees;
-using UnityEngine;
+﻿using UnityEngine;
 
-namespace ReefEditor.VoxelTech {
+namespace ReefEditor.Streaming {
     public class VoxelGrid {
         private readonly byte[] densityGrid;
         private readonly byte[] typeGrid;
@@ -11,7 +10,6 @@ namespace ReefEditor.VoxelTech {
         public Vector3Int octreeOrigin;
 
         public VoxelGrid(Vector3Int index, int resolution) {
-
             int fullResolution = resolution + 2;
             arraySize = Vector3Int.one * fullResolution;
 
@@ -30,8 +28,8 @@ namespace ReefEditor.VoxelTech {
         public byte GetVoxelDensity(Vector3Int voxel) {
             return densityGrid[Globals.LinearIndex(voxel - worldOriginVoxel, arraySize)];
         }
-        public byte[] GetVoxel(Vector3Int voxel) {
-            return new byte[] { GetVoxelBlocktype(voxel), GetVoxelDensity(voxel) };
+        public OctNodeData GetVoxel(Vector3Int voxel) {
+            return new OctNodeData (GetVoxelBlocktype(voxel), GetVoxelDensity(voxel), 0);
         }
         public void SetVoxel(Vector3Int voxel, byte[] data) {
             var id = Globals.LinearIndex(voxel - worldOriginVoxel, arraySize);
@@ -39,13 +37,11 @@ namespace ReefEditor.VoxelTech {
             densityGrid[id] = data[1];
         }
 
-        public void UpdateFullGrid() {
-
+        public void RasterizeFullGrid(int maxSearchHeight) {
             for (int z = 0; z < arraySize.z; z++) {
                 for (int y = 0; y < arraySize.y; y++) {
                     for (int x = 0; x < arraySize.x; x++) {
-                        var voxel = VoxelMetaspace.metaspace.GetVoxelFromOctree(worldOriginVoxel + new Vector3Int(x, y, z));
-
+                        var voxel = VoxelMetaspace.instance.GetOctnodeVoxel(worldOriginVoxel + new Vector3Int(x, y, z), maxSearchHeight);
                         var id = Globals.LinearIndex(x, y, z, arraySize);
                         typeGrid[id] = voxel.type;
                         densityGrid[id] = voxel.density;
@@ -58,14 +54,16 @@ namespace ReefEditor.VoxelTech {
             return MeshBuilder.builder.GenerateMesh(densityGrid, typeGrid, arraySize, Vector3.zero, out blocktypes);
         }
 
-        public void BlendGrids(Brush.BrushStroke stroke, IVoxelGrid grid) {
+        /*
+
+        public void BlendGrids(Brush.BrushStroke stroke) {
             for (int z = 0; z < arraySize.x; z++) {
                 for (int y = 0; y < arraySize.y; y++) {
                     for (int x = 0; x < arraySize.z; x++) {
 
-                        // this is just to mask voxels outside world bounds
-                        if (VoxelMetaspace.metaspace.GetGridForVoxel(worldOriginVoxel + new Vector3Int(x, y, z)) is null) continue;
-                        if (!grid.GetMask(x, y, z)) continue;
+                        // TODO: reimplement brushes lmao
+                        //if (VoxelWorld.metaspace.GetGridForVoxel(worldOriginVoxel + new Vector3Int(x, y, z)) is null) continue;
+                        //if (!grid.GetMask(x, y, z)) continue;
 
                         ApplyGridAction(x, y, z, worldOriginVoxel, stroke);
                     }
@@ -216,5 +214,7 @@ namespace ReefEditor.VoxelTech {
                 t = Brush.selectedType;
             }
         }
+
+        */
     }
 }

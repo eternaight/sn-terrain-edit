@@ -135,7 +135,7 @@ namespace ReefEditor {
                 planes = instance.boundaryPlanes;
             }
 
-            Vector3 worldCenter = (Vector3)VoxelWorld.RealSize() * 0.5f;
+            Vector3 worldCenter = (Vector3)VoxelMetaspace.instance.RealSize * 0.5f;
 
             planes[0].transform.position = new Vector3(worldCenter.x, 0, worldCenter.z);
             planes[0].transform.localScale = new Vector3(worldCenter.x * .2f, 1, worldCenter.z * .2f);

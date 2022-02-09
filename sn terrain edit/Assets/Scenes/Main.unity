@@ -3523,10 +3523,9 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 560716373}
-  - component: {fileID: 560716375}
   - component: {fileID: 560716374}
   m_Layer: 0
-  m_Name: World
+  m_Name: Metaspace
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -3558,22 +3557,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 71f9a5ab797197f4eaff54d0a694b36d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  meshes: []
   loadInProgress: 0
   loadingProgress: 0
   loadingState: 
---- !u!114 &560716375
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 560716372}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 646409b309d1e8745aefc6753ce83393, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!1 &578773112
 GameObject:
   m_ObjectHideFlags: 0

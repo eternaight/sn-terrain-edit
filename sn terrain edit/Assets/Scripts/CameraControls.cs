@@ -15,11 +15,6 @@ namespace ReefEditor {
         float zoomStart = -1;
         public float speed = 2;
         bool mouseOverUI;
-        Brush brush;
-
-        void Start() {
-            brush = GetComponent<Brush>();
-        }
 
         void OnRegionLoad() {
             moveLock = false;
@@ -29,7 +24,7 @@ namespace ReefEditor {
         }
 
         public void PoseCamera() {
-            Camera.main.transform.parent.position = (Vector3)VoxelWorld.RealSize() * 0.5f;
+            Camera.main.transform.parent.position = (Vector3)VoxelMetaspace.instance.RealSize * 0.5f;
         }
 
         void Update() {
@@ -55,6 +50,7 @@ namespace ReefEditor {
                     prevRotation = transform.parent.rotation.eulerAngles;
                 }
 
+                /*
                 if (brush.enabled) {
                     if (mouseOverUI) {
                         brush.DisableBrushGizmo();
@@ -63,6 +59,7 @@ namespace ReefEditor {
                         brush.BrushAction(Input.GetMouseButton(0));
                     }
                 }
+                */
 
                 if (!mouseOverUI) {
                     zoomLevel = Mathf.Clamp01(zoomLevel - Input.mouseScrollDelta.y * 0.01f);
@@ -85,7 +82,7 @@ namespace ReefEditor {
         }
 
         private Vector3 CapPosition(Vector3 pos) {
-            var size = VoxelWorld.RealSize();
+            var size = VoxelMetaspace.instance.RealSize;
 
             float cappedPosX = Mathf.Clamp(pos.x, 0, size.x);
             float cappedPosY = Mathf.Clamp(pos.y, 0, size.y);
