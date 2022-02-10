@@ -3,18 +3,26 @@ using UnityEngine.UI;
 
 namespace ReefEditor.UI {
     public class UIBrushWindow : UIWindow {
-        UIButtonSelect modeSelector;
-        UIHybridInput brushSizeSelector;
-        UIHybridInput brushStrengthSelector;
-        InputField blocktypeInput;
+        
+        private UIButtonSelect modeSelector;
+        private UIHybridInput brushSizeSelector;
+        private UIHybridInput brushStrengthSelector;
+        private InputField blocktypeInput;
+        private BrushMaster brushMaster;
 
-        void Awake() {
+        private bool inited;
+
+        private void Initialize() {
+
+            inited = true;
+            brushMaster = VoxelMetaspace.instance.brushMaster;
+
             modeSelector = transform.GetChild(1).GetChild(0).GetComponentInChildren<UIButtonSelect>();
             modeSelector.OnSelectionChanged += SetNewBrushMode;
 
             brushSizeSelector = transform.GetChild(1).GetChild(1).GetComponentInChildren<UIHybridInput>();
-            brushSizeSelector.minValue = Brush.minBrushSize;
-            brushSizeSelector.maxValue = Brush.maxBrushSize;
+            brushSizeSelector.minValue = 1;
+            brushSizeSelector.maxValue = 32;
             brushSizeSelector.formatFunction = FormatSize;
             brushSizeSelector.OnValueUpdated += SetNewBrushSize;
 
@@ -23,35 +31,39 @@ namespace ReefEditor.UI {
             brushStrengthSelector.OnValueUpdated += SetNewBrushStrength;
 
             blocktypeInput = transform.GetChild(1).GetChild(3).GetComponentInChildren<InputField>();
-            Brush.OnParametersChanged += RedrawValues;
+            brushMaster.OnParametersChanged += RedrawValues;
         }
 
         public override void EnableWindow()
         {
-            Brush.SetEnabled(true);
             base.EnableWindow();
+            if (!inited) {
+                Initialize();
+            }
+
             RedrawValues();
+            brushMaster.BrushWindowActive = true;
         }
         public override void DisableWindow()
         {
-            Brush.SetEnabled(false);
             base.DisableWindow();
+            brushMaster.BrushWindowActive = false;
         }
 
         // For receiving commands from UI
         public void SetNewBrushSize() {
-            Brush.SetBrushSize(brushSizeSelector.LerpedValue);
+            brushMaster.SetBrushSize(brushSizeSelector.LerpedValue);
         }
         public void SetNewBrushStrength() {
-            Brush.SetBrushStrength(brushStrengthSelector.LerpedValue);
+            brushMaster.SetBrushStrength(brushStrengthSelector.LerpedValue);
         }
         public void SetNewBrushMode() {
-            Brush.SetBrushMode(modeSelector.selection);
+            brushMaster.SetBrushMode(modeSelector.selection);
         }
         public void SetNewBlocktype() {
             if (byte.TryParse(blocktypeInput.text, out byte typeValue)) {
                 if (ContentLoading.SNContentLoader.instance.blocktypesData[typeValue].ExistsInGame) {
-                    Brush.SetBrushMaterial(typeValue);
+                    brushMaster.SetBrushBlocktype(typeValue);
                 }
             }
         }
@@ -68,17 +80,17 @@ namespace ReefEditor.UI {
             RedrawRadiusDisplay();
             RedrawStrengthDisplay();
         }
-        void RedrawBrushMode() {
-            modeSelector.SetSelectionFromBrushUpdate((int)Brush.activeMode);
+        private void RedrawBrushMode() {
+            modeSelector.SetSelectionFromBrushUpdate((int)brushMaster.userSelectedMode);
         }
-        public void RedrawRadiusDisplay() {
-            brushSizeSelector.SetValue(Brush.brushSize);
+        private void RedrawRadiusDisplay() {
+            brushSizeSelector.SetValue(brushMaster.brush.radius);
         }
-        public void RedrawStrengthDisplay() {
-            brushStrengthSelector.SetValue(Brush.brushStrength);
+        private void RedrawStrengthDisplay() {
+            //brushStrengthSelector.SetValue(0);
         }
-        public void RedrawBlocktypeDisplay() {
-            blocktypeInput.SetTextWithoutNotify(Brush.selectedType.ToString());
+        private void RedrawBlocktypeDisplay() {
+            blocktypeInput.SetTextWithoutNotify(brushMaster.brush.selectedBlocktype.ToString());
         }
     }
 }

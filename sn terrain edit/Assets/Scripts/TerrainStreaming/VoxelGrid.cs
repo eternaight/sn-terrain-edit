@@ -43,6 +43,7 @@ namespace ReefEditor.Streaming {
                     for (int x = 0; x < arraySize.x; x++) {
                         var voxel = VoxelMetaspace.instance.GetOctnodeVoxel(worldOriginVoxel + new Vector3Int(x, y, z), maxSearchHeight);
                         var id = Globals.LinearIndex(x, y, z, arraySize);
+                        if (voxel is null) voxel = new OctNodeData();
                         typeGrid[id] = voxel.type;
                         densityGrid[id] = voxel.density;
                     }

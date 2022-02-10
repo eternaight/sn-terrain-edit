@@ -57,7 +57,7 @@ namespace ReefEditor {
         public const string dataToAddressables = "StreamingAssets\\aa\\StandaloneWindows64";
         public bool exportIntoGame;
 
-        void Awake() {
+        private void Awake() {
             instance = this;
         }
 

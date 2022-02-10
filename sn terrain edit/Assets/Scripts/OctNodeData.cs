@@ -14,9 +14,14 @@ namespace ReefEditor {
             density = 0;
             childPosition = 0;
         }
-        public OctNodeData(byte type, byte signedDistance, ushort childPos) {
+        public OctNodeData(byte type, byte density) {
             this.type = type;
-            density = signedDistance;
+            this.density = density;
+            childPosition = 0;
+        }
+        public OctNodeData(byte type, byte density, ushort childPos) {
+            this.type = type;
+            this.density = density;
             childPosition = childPos;
         }
         public OctNodeData(OctNodeData other) {

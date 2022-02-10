@@ -1,11 +1,7 @@
-using System;
 using System.Collections.Generic;
 using UnityEngine;
-using ReefEditor.Streaming;
 
 namespace ReefEditor.VoxelEditing {
-
-    [Serializable]
     public class OctNode {
 
         // data
@@ -17,7 +13,6 @@ namespace ReefEditor.VoxelEditing {
         public OctNode[] children;
 
         public OctNode(Vector3Int position, int size) {
-
             HasChildren = false;
             this.position = position;
             this.size = size;
@@ -32,7 +27,6 @@ namespace ReefEditor.VoxelEditing {
         public void Subdivide() {
 
             if (!HasChildren) {
-
                 children = new OctNode[8];
 
                 for (int b = 0; b < 8; b++) {
@@ -91,23 +85,6 @@ namespace ReefEditor.VoxelEditing {
             }
         }
 
-        public int GetMaxDepth(int prevDepth) {
-            if (children == null) return prevDepth + 1;
-            else {
-                return Mathf.Max(
-                    children[0].GetMaxDepth(prevDepth + 1),
-                    children[1].GetMaxDepth(prevDepth + 1),
-                    children[2].GetMaxDepth(prevDepth + 1),
-                    children[3].GetMaxDepth(prevDepth + 1),
-                    children[4].GetMaxDepth(prevDepth + 1),
-                    children[5].GetMaxDepth(prevDepth + 1),
-                    children[6].GetMaxDepth(prevDepth + 1),
-                    children[7].GetMaxDepth(prevDepth + 1)
-                );
-            }
-        }
-
-
         // About octree heights: 0 = rootx32, 1x16, 2x8, 3x4, 4x2, 5x1. Total of 6 levels.
         public OctNodeData GetVoxel(Vector3Int voxel, int maxSearchHeight, int height = 0) {
             if (HasChildren && (height < maxSearchHeight)) {
@@ -129,23 +106,25 @@ namespace ReefEditor.VoxelEditing {
             );
         }
 
-        public void DeRasterizeGrid(VoxelGrid grid, int maxHeight, int height = 0) {
-            if (height < maxHeight) {
+        public void MixGrid(IVoxelGrid grid, int height) {
+            if (height != 0) {
                 Subdivide();
 
                 for (int b = 0; b < 8; b++) {
-                    children[b].DeRasterizeGrid(grid, maxHeight, height + 1);
+                    children[b].MixGrid(grid, height - 1);
                 }
 
-                data = new OctNodeData(MostCommonChildType(), AverageChildDensity(), 0);
+                data = new OctNodeData(children[0].data.type, children[0].data.density, 0);
 
                 if (IsMonotone()) StripChildren();
             } else {
-                data = grid.GetVoxel(position);
+                if (grid.GetMask(position)) {
+                    data = grid.BlendVoxel(data, position);
+                }
             }
         }
 
-        bool IsMonotone() {
+        private bool IsMonotone() {
 
             if (!HasChildren) return true;
 
@@ -160,22 +139,7 @@ namespace ReefEditor.VoxelEditing {
             return true;
         }
 
-        public void Visualize() {
-
-            if (HasChildren) {
-                foreach (OctNode node in children) {
-                    node.Visualize();
-                }
-            } else {
-                if (data.density == 0) {
-                    bool solid = data.type != 0;
-                    Gizmos.color = solid ? Color.yellow : Color.white;
-                    Gizmos.DrawCube(position + Vector3.one * size * 0.5f, Vector3.one * size);
-                }
-            }
-        }
-
-        byte MostCommonChildType() {
+        private byte MostCommonChildType() {
             if (!HasChildren) return data.type;
 
             for (int b = 0; b < 8; b++) {
@@ -186,7 +150,7 @@ namespace ReefEditor.VoxelEditing {
 
             return 0;
         }
-        byte AverageChildDensity() {
+        private byte AverageChildDensity() {
             if (!HasChildren) return data.density;
             int sum = 0;
             float realCount = 0;
@@ -221,7 +185,7 @@ namespace ReefEditor.VoxelEditing {
         }
 
         // constants
-        static Vector3Int[] cornerOffsets = {
+        private readonly Vector3Int[] cornerOffsets = {
             new Vector3Int(0, 0, 0),
             new Vector3Int(0, 0, 1),
             new Vector3Int(0, 1, 0),

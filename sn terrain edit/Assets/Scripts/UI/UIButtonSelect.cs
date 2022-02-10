@@ -20,7 +20,7 @@ public class UIButtonSelect : MonoBehaviour {
         }
 
         try { UpdateButtons(); }
-        catch (NullReferenceException _) {}
+        catch (NullReferenceException) {}
     }
     void SetSelection(Button buttonClicked) {
         selection = buttonClicked.transform.GetSiblingIndex();

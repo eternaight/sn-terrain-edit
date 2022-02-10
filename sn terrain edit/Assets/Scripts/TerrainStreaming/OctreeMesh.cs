@@ -43,6 +43,7 @@ namespace ReefEditor.Streaming {
                         var localVoxel = new Vector3Int(x, y, z) * (1 << (5 - maxOctreeHeight));
                         var voxel = VoxelMetaspace.instance.GetOctnodeVoxel(worldOriginVoxel + localVoxel, maxOctreeHeight);
                         var id = Globals.LinearIndex(x, y, z, arraySize);
+                        if (voxel is null) voxel = new OctNodeData();
                         typeGrid[id] = voxel.type;
                         densityGrid[id] = voxel.density;
                     }
@@ -61,6 +62,8 @@ namespace ReefEditor.Streaming {
                     materials[b] = SNContentLoader.GetMaterialForType(blocktypes[b]);
                 }
                 gameObject.GetComponent<MeshRenderer>().materials = materials;
+            } else {
+                Debug.LogWarning("Empty mesh!");
             }
         }
     }

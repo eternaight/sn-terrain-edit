@@ -62,13 +62,17 @@ namespace ReefEditor.Streaming {
             }
         }
 
-        public IEnumerator StreamTerrainCoroutine() {
+        public IEnumerator RestartStreaming() {
             while (queue.Count > 0) {
                 var item = queue.Dequeue();
                 meshes[item.octree.z][item.octree.y][item.octree.x].ReloadMesh(item.level, _biggestNode);
                 Debug.Log("Reloaded mesh for " + (item.octree + _octreeMin));
                 yield return null;
             }
+        }
+
+        public void AddOctreeToStream(Vector3Int localIndex) {
+            queue.Enqueue(new StreamItem() { octree = localIndex, level = 5 });
         }
 
         private struct StreamItem {

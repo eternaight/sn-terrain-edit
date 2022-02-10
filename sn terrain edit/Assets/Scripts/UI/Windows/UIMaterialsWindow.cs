@@ -49,7 +49,7 @@ namespace ReefEditor.UI {
         IEnumerator DisplayMaterialIcons() {
             materialsLoaded = true;
 
-            Coroutine matLoadCoroutine = StartCoroutine(SNContentLoader.instance.LoadContent());
+            StartCoroutine(SNContentLoader.instance.LoadContent());
             while(SNContentLoader.instance.busyLoading) {
                 EditorUI.UpdateStatusBar(SNContentLoader.instance.loadState, SNContentLoader.instance.loadProgress);
                 yield return null;
@@ -70,12 +70,12 @@ namespace ReefEditor.UI {
             UpdateIconVisibility();
         }
 
-        bool IsIconVisible(RectTransform rectTf) {
-            RectTransform scrollViewTf = transform.GetChild(2).GetChild(0) as RectTransform;
+        private bool IsIconVisible(RectTransform rectTf) {
+            //RectTransform scrollViewTf = transform.GetChild(2).GetChild(0) as RectTransform;
             return rectTf.position.y > 0 & rectTf.position.y < 1080;
         } 
 
-        class UIBlocktypeIconDisplay {
+        private class UIBlocktypeIconDisplay {
             public GameObject gameObject;
             BlocktypeMaterial mat;
             bool isVisible = false;
@@ -102,43 +102,80 @@ namespace ReefEditor.UI {
                 isVisible = newVisible;
 
                 if (isVisible) {
-                    if (mat.MainTexture != null) {
-                        Texture2D tex1 = mat.MainTexture;
-
-                        Color[] colors = tex1.GetPixels();
-                        for (int i = 0; i < colors.Length; i++) {
-                            colors[i].a = 1;
-                        }
-                        Texture2D texNoAlpha = new Texture2D(tex1.width, tex1.height);
-                        texNoAlpha.SetPixels(colors);
-                        texNoAlpha.Apply();
-
-                        Sprite sprite = Sprite.Create(texNoAlpha, new Rect(0.0f, 0.0f, tex1.width, tex1.height), new Vector2(0.5f, 0.5f), tex1.width);
-                        gameObject.GetComponent<Image>().sprite = sprite;
-                    }
                     if (mat.SideTexture != null) {
-                        Texture2D tex2 = mat.SideTexture;
-
-                        Color[] colors = tex2.GetPixels();
-                        for (int i = 0; i < colors.Length; i++) {
-                            colors[i].a = 1;
-                        }
-                        Texture2D tex2NoAlpha = new Texture2D(tex2.width, tex2.height);
-                        tex2NoAlpha.SetPixels(colors);
-                        tex2NoAlpha.Apply();
-
-                        Sprite sprite = Sprite.Create(tex2NoAlpha, new Rect(0.0f, 0.0f, tex2.width, tex2.height), new Vector2(0.5f, 0.5f), tex2.width);
-                        gameObject.transform.GetChild(0).GetChild(0).GetComponent<Image>().sprite = sprite;
+                        gameObject.GetComponent<Image>().sprite = ProcessCombinedTexture(mat.MainTexture, mat.SideTexture, 2);
                     } else {
-                        gameObject.transform.GetChild(0).gameObject.SetActive(false);
+                        gameObject.GetComponent<Image>().sprite = ProcessTexture(mat.MainTexture, 2);
                     }
                 } else {
                     gameObject.GetComponent<Image>().sprite = null;
                 }
             }
 
+            private Sprite ProcessTexture(Texture2D ogTex, int downsamples) {
+                var colors = ogTex.GetPixels();
+
+                int dsWidth = ogTex.width >> downsamples;
+                int dsHeight = ogTex.height >> downsamples;
+                var newColors = new Color[dsHeight * dsWidth];
+
+                for (int x = 0; x < dsWidth; ++x) {
+                    int xOg = x << downsamples;
+                    for (int y = 0; y < dsHeight; ++y) {
+                        int yOg = y << downsamples;
+                        var color = colors[xOg + yOg * ogTex.width];
+                        color.a = 1;
+                        newColors[x + y * dsWidth] = color;
+                    }
+                }
+
+                Texture2D downsampled = new Texture2D(dsWidth, dsHeight);
+                downsampled.SetPixels(newColors);
+                downsampled.Apply();
+                var sprite = Sprite.Create(downsampled, new Rect(0, 0, dsWidth, dsHeight), Vector2.one * 0.5f, dsWidth);
+                return sprite;
+            }
+            private Sprite ProcessCombinedTexture(Texture2D ogTexTop, Texture2D ogTexBottom, int downsamples) {
+
+                var colorsTop = ogTexTop.GetPixels();
+                var colorsBottom = ogTexBottom.GetPixels();
+
+                int dsWidth = Mathf.Min(ogTexTop.width, ogTexBottom.width) >> downsamples;
+                int dsHeight = Mathf.Min(ogTexTop.height, ogTexBottom.height) >> downsamples;
+                var newColors = new Color[dsHeight * dsWidth];
+
+                int widthFactorBottom = ogTexBottom.width / dsWidth,    heightFactorBottom = ogTexBottom.height / dsHeight;
+                int widthFactorTop =    ogTexTop.width / dsWidth,       heightFactorTop = ogTexTop.height / dsHeight;
+
+                int halfpoint = dsHeight / 2;
+
+                for (int x = 0; x < dsWidth; ++x) {
+                    int xOg = x * widthFactorBottom;
+                    for (int y = 0; y < halfpoint; ++y) {
+                        int yOg = y * heightFactorBottom;
+                        var color = colorsBottom[xOg + yOg * ogTexBottom.width];
+                        color.a = 1;
+                        newColors[x + y * dsWidth] = color;
+                    }
+
+                    xOg = x * widthFactorTop;
+                    for (int y = halfpoint; y < dsHeight; ++y) {
+                        int yOg = y * heightFactorTop;
+                        var color = colorsTop[xOg + yOg * ogTexTop.width];
+                        color.a = 1;
+                        newColors[x + y * dsWidth] = color;
+                    }
+                }
+
+                Texture2D downsampled = new Texture2D(dsWidth, dsHeight);
+                downsampled.SetPixels(newColors);
+                downsampled.Apply();
+                var sprite = Sprite.Create(downsampled, new Rect(0, 0, dsWidth, dsHeight), Vector2.one * 0.5f, dsWidth);
+                return sprite;
+            }
+
             public void OnMaterialSelected() {
-                Brush.SetBrushMaterial((byte)mat.blocktype);
+                VoxelMetaspace.instance.brushMaster.SetBrushBlocktype((byte)mat.blocktype);
             }
         }
     }

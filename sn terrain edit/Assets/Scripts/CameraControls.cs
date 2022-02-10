@@ -1,20 +1,23 @@
-﻿using UnityEngine;
+﻿using ReefEditor.VoxelEditing;
+using UnityEngine;
 using UnityEngine.EventSystems;
 
 namespace ReefEditor {
     public class CameraControls : MonoBehaviour {
-        Vector3 dragStartPos = Vector3.zero;
-        Vector3 prevRotation;
-
         public bool moveLock = true;
 
         public bool dragging;
-        public float sensitivity;
-        float zoomLevel;
-        float zoomRange = -1000;
-        float zoomStart = -1;
         public float speed = 2;
-        bool mouseOverUI;
+        public float sensitivity;
+
+        private float zoomLevel;
+        private float zoomRange = -1000;
+        private float zoomStart = -1;
+        private bool mouseOverUI;
+        private Vector3 dragStartPos = Vector3.zero;
+        private Vector3 prevRotation;
+
+        private BrushMaster brushMaster;
 
         void OnRegionLoad() {
             moveLock = false;
@@ -27,7 +30,10 @@ namespace ReefEditor {
             Camera.main.transform.parent.position = (Vector3)VoxelMetaspace.instance.RealSize * 0.5f;
         }
 
-        void Update() {
+        private void Start() {
+            brushMaster = VoxelMetaspace.instance.brushMaster;
+        }
+        private void Update() {
 
             if (!moveLock) {
 
@@ -50,16 +56,20 @@ namespace ReefEditor {
                     prevRotation = transform.parent.rotation.eulerAngles;
                 }
 
-                /*
-                if (brush.enabled) {
-                    if (mouseOverUI) {
-                        brush.DisableBrushGizmo();
-                    }
-                    else {
-                        brush.BrushAction(Input.GetMouseButton(0));
+                if (brushMaster.BrushWindowActive) {
+
+                    Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+
+                    Physics.Raycast(ray, out RaycastHit hit, Mathf.Infinity, 1);
+
+                    if (hit.collider != null && !mouseOverUI) {
+                        brushMaster.DrawBrushGizmo(hit.point, hit.normal);
+                        if (Input.GetMouseButton(0))
+                            brushMaster.BrushAction(hit, ray, Input.GetKey(KeyCode.LeftShift), Input.GetKey(KeyCode.LeftControl));
+                    } else {
+                        brushMaster.BrushStop();
                     }
                 }
-                */
 
                 if (!mouseOverUI) {
                     zoomLevel = Mathf.Clamp01(zoomLevel - Input.mouseScrollDelta.y * 0.01f);
@@ -76,7 +86,7 @@ namespace ReefEditor {
             speed = Input.GetKey(KeyCode.LeftShift) ? 20 : 10;
 
             // first-person movement
-            transform.parent.Translate(GetMoveVector() * speed * Time.deltaTime);
+            transform.parent.Translate(speed * Time.deltaTime * GetMoveVector());
 
             transform.parent.position = CapPosition(transform.parent.position);
         }

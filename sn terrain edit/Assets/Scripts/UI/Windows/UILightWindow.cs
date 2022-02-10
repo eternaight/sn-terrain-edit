@@ -29,7 +29,7 @@ namespace ReefEditor.UI {
             rotationYSlider.SetValue(250);
             rotationYSlider.modValue = true;
 
-            brushLight = Brush.GetBrushLight();
+            brushLight = VoxelMetaspace.instance.brushMaster.GetLightComponent();
             checkbox = GetComponentInChildren<UICheckbox>();
             checkbox.transform.GetComponent<Button>().onClick.AddListener(UpdateBrushLight);
 

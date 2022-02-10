@@ -68,7 +68,7 @@ Material:
     - Vector1_E220004D: 0.25
     - _AlphaClip: 0
     - _Blend: 0.25
-    - _BlendRadius: 0
+    - _BlendRadius: 5.4591346
     - _BumpScale: 1
     - _Cull: 2
     - _Cutoff: 0.5
@@ -94,6 +94,6 @@ Material:
     - Vector3_F90F351E: {r: 0.5, g: 0.5, b: 0.5, a: 0}
     - _BaseColor: {r: 0.525, g: 0.525, b: 0.525, a: 0.46666667}
     - _Color: {r: 1, g: 1, b: 1, a: 1}
-    - _CursorWorldPos: {r: 0, g: 0, b: 0, a: 0}
+    - _CursorWorldPos: {r: 160, g: 87.85975, b: 122.60717, a: 0}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
     - _SpecColor: {r: 0.2, g: 0.2, b: 0.2, a: 1}

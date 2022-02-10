@@ -3557,6 +3557,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 71f9a5ab797197f4eaff54d0a694b36d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  regionLoaded: 0
   loadInProgress: 0
   loadingProgress: 0
   loadingState: 
@@ -8734,7 +8735,6 @@ GameObject:
   - component: {fileID: 1433409867}
   - component: {fileID: 1433409866}
   - component: {fileID: 1433409869}
-  - component: {fileID: 1433409870}
   - component: {fileID: 1433409871}
   m_Layer: 0
   m_Name: Main Camera
@@ -8824,18 +8824,6 @@ MonoBehaviour:
   dragging: 0
   sensitivity: 1
   speed: 2
---- !u!114 &1433409870
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1433409865}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: df5b55175a06df04ab22386e61bac975, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!114 &1433409871
 MonoBehaviour:
   m_ObjectHideFlags: 0

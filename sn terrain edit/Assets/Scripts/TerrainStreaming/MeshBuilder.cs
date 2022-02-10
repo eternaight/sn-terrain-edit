@@ -15,13 +15,13 @@ namespace ReefEditor {
         ComputeBuffer faceBuffer; 
         ComputeBuffer triCountBuffer;
 
-        public void Awake() {
+        private void Awake() {
             builder = this;
         }
 
-        void OnDestroy () {
+        private void OnDestroy () {
             if (Application.isPlaying) {
-                ReleaseBuffers ();
+                ReleaseBuffers();
             }
         }
 
@@ -38,7 +38,7 @@ namespace ReefEditor {
 
             if (Application.isPlaying == false || (densityBuffer == null || bufferSizeChanged)) {
 
-                ReleaseBuffers ();
+                ReleaseBuffers();
                 
                 faceBuffer = new ComputeBuffer (maxFaceCount, Face.GetStride(), ComputeBufferType.Append);
                 densityBuffer = new ComputeBuffer (numPoints, sizeof (int));
@@ -47,7 +47,7 @@ namespace ReefEditor {
             }
         }
 
-        void ReleaseBuffers () {
+        void ReleaseBuffers() {
             if (faceBuffer != null) {
                 faceBuffer.Release();
                 densityBuffer.Release();
@@ -102,7 +102,7 @@ namespace ReefEditor {
         Mesh MakeMeshes(Face[] faces, Vector3Int resolution, Vector3 offset, out int[] blocktypes) {
             
             // calculate vertex positions
-            VoxelVertex[] verticesOfNodes = new VoxelVertex[resolution.x * resolution.y * resolution.z];
+            DualVertex[] verticesOfNodes = new DualVertex[resolution.x * resolution.y * resolution.z];
             List<Vector3> vertices = new List<Vector3>();
             List<Vector2> vertexUVs = new List<Vector2>();
 
@@ -278,26 +278,6 @@ namespace ReefEditor {
             return new Vector2((blockType % 16)/16f, (blockType / 16)/16f);
         }
 
-        struct Triangle {
-            public Vector3 a;
-            public Vector3 b;
-            public Vector3 c;
-            public int type;
-
-            public Vector3 this [int i] {
-                get {
-                    switch (i) {
-                        case 0:
-                            return a;
-                        case 1:
-                            return b;
-                        default:
-                            return c;
-                    }
-                }
-            }
-        }
-
         struct Face : IComparable {
             public Vector3 a, b, c, d;
             public Vector3 surfaceIntersection;
@@ -344,7 +324,7 @@ namespace ReefEditor {
             }
         }
 
-        struct VoxelVertex {
+        struct DualVertex {
             public List<Face> adjFaces;
             public int vertIndex;
             public bool isSet;

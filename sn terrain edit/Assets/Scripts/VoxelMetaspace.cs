@@ -13,6 +13,7 @@ namespace ReefEditor {
         private OctNode[] rootNodes;
 
         public TerrainStreamer streamer;
+        public BrushMaster brushMaster;
 
         public bool regionLoaded = false;
 
@@ -44,6 +45,10 @@ namespace ReefEditor {
         private void Awake() {
             instance = this;
             streamer = new TerrainStreamer();
+            brushMaster = new BrushMaster();
+        }
+        private void Start() {
+            brushMaster.Start();
         }
 
         private void Initialize(Vector3Int octreeMin, Vector3Int octreeMax) {
@@ -66,8 +71,7 @@ namespace ReefEditor {
                 var node = rootNodes[GetLabel(voxel / BIGGEST_NODE)];
                 return node.GetVoxel(voxel, maxSearchHeight);
             }
-
-            return new OctNodeData(0, 0, 0);
+            return null;
         }
 
         public IEnumerable<int> OctreeLabelsOfBatch(Vector3Int batchId) {
@@ -97,42 +101,24 @@ namespace ReefEditor {
             }
         }
 
-        public void LoadRegion(Vector3Int pointA, Vector3Int pointB) {
+        public void ApplyVoxelGrid(IVoxelGrid grid) {
+            var bounds = grid.GetBounds();
+            var octreeMin = bounds[0] / BIGGEST_NODE;
+            var octreeMax = bounds[1] / BIGGEST_NODE;
 
-            var start = new Vector3Int(Mathf.Min(pointA.x, pointB.x), Mathf.Min(pointA.y, pointB.y), Mathf.Min(pointA.z, pointB.z));
-            var end = new Vector3Int(Mathf.Max(pointA.x, pointB.x), Mathf.Max(pointA.y, pointB.y), Mathf.Max(pointA.z, pointB.z));
-            Debug.Log($"Reading {start} to {end}");
-
-            StartCoroutine(RegionLoadCoroutine(start, end));
-        }
-        private IEnumerator RegionLoadCoroutine(Vector3Int minBatch, Vector3Int maxBatch) {
-
-            if (regionLoaded) {
-                Clear();
-            }
-            Initialize(minBatch * 5, maxBatch * 5 + Vector3Int.one * 4);
-
-            regionLoaded = true;
-            loadInProgress = true;
-
-            foreach (Vector3Int batchId in BatchIndices()) {
-                loadingProgress = 0.5f;
-                loadingState = $"Reading batch {batchId}";
-                var nodes = BatchReadWriter.readWriter.ReadBatch(batchId);
-                var labels = OctreeLabelsOfBatch(batchId);
-
-                foreach (int label in labels) {
-                    nodes.MoveNext();
-                    rootNodes[label] = nodes.Current;
-                    yield return null;
+            for (int z = octreeMin.z; z <= octreeMax.z; z++) {
+                for (int y = octreeMin.y; y <= octreeMax.y; y++) {
+                    for (int x = octreeMin.x; x <= octreeMax.x; x++) {
+                        var globalIndex = new Vector3Int(x, y, z);
+                        if (OctreeExists(globalIndex)) {
+                            rootNodes[GetLabel(globalIndex)].MixGrid(grid, 5);
+                            streamer.AddOctreeToStream(globalIndex - _octreeMin);
+                        }
+                    }
                 }
             }
 
-            yield return streamer.StreamTerrainCoroutine();
-
-            OnRegionLoaded?.Invoke();
-            Globals.RedrawBoundaryPlanes();
-            Camera.main.gameObject.SendMessage("OnRegionLoad");
+            StartCoroutine(streamer.RestartStreaming());
         }
 
         public byte SampleBlocktype(Vector3 hitPoint, Ray cameraRay, int retryCount = 0) {
@@ -176,21 +162,64 @@ namespace ReefEditor {
             return Globals.LinearIndex(localX, localY, localZ, OctreeCounts);
         }
 
+        public void LoadRegion(Vector3Int pointA, Vector3Int pointB) {
+
+            var start = new Vector3Int(Mathf.Min(pointA.x, pointB.x), Mathf.Min(pointA.y, pointB.y), Mathf.Min(pointA.z, pointB.z));
+            var end = new Vector3Int(Mathf.Max(pointA.x, pointB.x), Mathf.Max(pointA.y, pointB.y), Mathf.Max(pointA.z, pointB.z));
+            Debug.Log($"Reading {start} to {end}");
+
+            StartCoroutine(RegionLoadCoroutine(start, end));
+        }
+        private IEnumerator RegionLoadCoroutine(Vector3Int minBatch, Vector3Int maxBatch) {
+
+            if (regionLoaded) {
+                Clear();
+            }
+            Initialize(minBatch * 5, maxBatch * 5 + Vector3Int.one * 4);
+
+            regionLoaded = true;
+            loadInProgress = true;
+
+            foreach (Vector3Int batchId in BatchIndices()) {
+                loadingProgress = 0.5f;
+                loadingState = $"Reading batch {batchId}";
+                var nodes = BatchReadWriter.readWriter.ReadBatch(batchId);
+                var labels = OctreeLabelsOfBatch(batchId);
+
+                foreach (int label in labels) {
+                    nodes.MoveNext();
+                    rootNodes[label] = nodes.Current;
+                    yield return null;
+                }
+            }
+
+            yield return streamer.RestartStreaming();
+
+            OnRegionLoaded?.Invoke();
+            Globals.RedrawBoundaryPlanes();
+            Camera.main.gameObject.SendMessage("OnRegionLoad");
+        }
         public void ExportRegion(int mode) {
+            StartCoroutine(ExportCoroutine(mode));
+        }
+        private IEnumerator ExportCoroutine(int mode) {
             switch (mode) {
                 case 0:
-                    StartCoroutine(BatchReadWriter.readWriter.WriteOptOctreesCoroutine(this));
+                    yield return BatchReadWriter.readWriter.WriteOptOctreesCoroutine(this);
                     break;
                 case 1:
-                    StartCoroutine(BatchReadWriter.readWriter.WriteOctreePatchCoroutine(this));
+                    yield return BatchReadWriter.readWriter.WriteOctreePatchCoroutine(this);
                     break;
                 case 2:
-                    StartCoroutine(ExportFBX.ExportMetaspaceAsync(streamer, Globals.instance.batchOutputPath));
+                    yield return ExportFBX.ExportMetaspaceAsync(streamer, Globals.instance.batchOutputPath);
                     break;
                 default:
                     Debug.LogError("Unexpected export mode!");
                     break;
             }
+
+            OnRegionExported();
+            yield break;
         }
     }
 }
