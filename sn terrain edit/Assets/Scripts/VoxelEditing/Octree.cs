@@ -7,7 +7,7 @@ namespace ReefEditor.VoxelEditing {
         // data
         public Vector3Int position;
         public int size;
-        public OctNodeData data;
+        public VoxelData voxelData;
 
         public bool HasChildren { get; private set; }
         public OctNode[] children;
@@ -16,7 +16,7 @@ namespace ReefEditor.VoxelEditing {
             HasChildren = false;
             this.position = position;
             this.size = size;
-            data = new OctNodeData();
+            voxelData = new VoxelData();
         }
 
         public byte GetXMajorLocalOctreeIndex() {
@@ -32,12 +32,15 @@ namespace ReefEditor.VoxelEditing {
                 for (int b = 0; b < 8; b++) {
                     Vector3Int childPosition = position + cornerOffsets[b] * size / 2;
                     children[b] = new OctNode(childPosition, size / 2);
+                    children[b].voxelData = new VoxelData(this.voxelData.blocktype, this.voxelData.signedDistance);
                 }
 
                 HasChildren = true;
             }
         }
         public void StripChildren() {
+            this.voxelData.blocktype = children[0].voxelData.blocktype;
+            this.voxelData.signedDistance = children[0].voxelData.signedDistance;
             children = null;
             HasChildren = false;
         }
@@ -47,22 +50,19 @@ namespace ReefEditor.VoxelEditing {
         /// </summary>
         public void ReadArray(OctNodeData[] dataarray, int myPos) {
 
-            data = new OctNodeData(dataarray[myPos]);
+            var data = new OctNodeData(dataarray[myPos]);
+            voxelData = new VoxelData(data);
 
             if (data.childPosition > 0) {
                 Subdivide();
                 for (int i = 0; i < 8; i++) {
                     children[i].ReadArray(dataarray, data.childPosition + i);
                 }
-                HasChildren = true;
             }
         }
 
-        /// <summary>
-        /// reads data from the octree
-        /// </summary>
         public void WriteToArray(List<OctNodeData> dataArray) {
-            dataArray.Add(data);
+            dataArray.Add(voxelData.Encode());
             if (HasChildren) {
                 WriteChildrenToArray(dataArray, 1);
             }
@@ -76,8 +76,7 @@ namespace ReefEditor.VoxelEditing {
                 dataarray[myPos].childPosition = (ushort)newChildIndex;
 
                 for (int i = 0; i < 8; i++) {
-                    OctNodeData childData = new OctNodeData(children[i].data.type, children[i].data.density, 0);
-                    dataarray.Add(childData);
+                    dataarray.Add(voxelData.Encode());
                 }
                 for (int i = 0; i < 8; i++) {
                     children[i].WriteChildrenToArray(dataarray, (newChildIndex + i));
@@ -86,16 +85,16 @@ namespace ReefEditor.VoxelEditing {
         }
 
         // About octree heights: 0 = rootx32, 1x16, 2x8, 3x4, 4x2, 5x1. Total of 6 levels.
-        public OctNodeData GetVoxel(Vector3Int voxel, int maxSearchHeight, int height = 0) {
-            if (HasChildren && (height < maxSearchHeight)) {
+        public VoxelData GetVoxel(Vector3Int voxel, int height) {
+            if (HasChildren && height > 0) {
                 for (int i = 0; i < 8; i++) {
                     if (children[i].ContainsVoxel(voxel)) {
-                        return children[i].GetVoxel(voxel, maxSearchHeight, height + 1);
+                        return children[i].GetVoxel(voxel, height - 1);
                     }
                 }
                 return null;
             } else {
-                return data;
+                return voxelData;
             }
         }
         public bool ContainsVoxel(Vector3Int voxel) {
@@ -106,64 +105,83 @@ namespace ReefEditor.VoxelEditing {
             );
         }
 
-        public void MixGrid(IVoxelGrid grid, int height) {
-            if (height != 0) {
-                Subdivide();
+        public bool MixGrid(IVoxelGrid grid, int height) {
 
-                for (int b = 0; b < 8; b++) {
-                    children[b].MixGrid(grid, height - 1);
-                }
-
-                data = new OctNodeData(children[0].data.type, children[0].data.density, 0);
-
-                if (IsMonotone()) StripChildren();
-            } else {
+            if (height == 0) {
                 if (grid.GetMask(position)) {
-                    data = grid.BlendVoxel(data, position);
+                    grid.BlendVoxel(voxelData, position);
                 }
+                return true;
             }
+                
+            if (!HasChildren) {
+                Subdivide();
+            }
+
+            //if (IsMonotone()) StripChildren();
+            bool childrenMonotone = true;
+            bool childrenDataMonotone = true;
+            var data0 = children[0].voxelData.Encode();
+            for (int b = 0; b < 8; b++) {
+                if (!children[b].MixGrid(grid, height - 1))
+                    childrenMonotone = false;
+                if (children[b].voxelData.blocktype != data0.type)
+                    childrenDataMonotone = false;
+                if (children[b].voxelData.Encode().density != data0.density)
+                    childrenDataMonotone = false;
+            }
+
+            if (childrenMonotone && childrenDataMonotone) {
+                StripChildren();
+            } else {
+                voxelData.blocktype = MostCommonChildType();
+                voxelData.signedDistance = AverageChildDistance();
+            }
+            return childrenMonotone && childrenDataMonotone;
         }
 
         private bool IsMonotone() {
 
-            if (!HasChildren) return true;
+            if (!HasChildren) return false;
 
-            OctNodeData t1 = children[0].data;
-            int childDensity = t1.density;
+            var data = children[0].voxelData.Encode();
             for (int b = 1; b < 8; b++) {
-                if (childDensity != children[b].data.density) {
+                var _data = children[b].voxelData.Encode();
+                if (data.type != _data.type) {
+                    return false;
+                }
+                if (data.density != _data.density) {
                     return false;
                 }
             }
 
             return true;
         }
-
         private byte MostCommonChildType() {
-            if (!HasChildren) return data.type;
+            if (!HasChildren) return voxelData.blocktype;
 
             for (int b = 0; b < 8; b++) {
-                if (children[b].data.type != 0) {
-                    return children[b].data.type;
+                if (children[b].voxelData.blocktype != 0) {
+                    return children[b].voxelData.blocktype;
                 }
             }
 
             return 0;
         }
-        private byte AverageChildDensity() {
-            if (!HasChildren) return data.density;
-            int sum = 0;
-            float realCount = 0;
+        private float AverageChildDistance() {
+            if (!HasChildren) return voxelData.signedDistance;
+            float sum = 0;
+            int realCount = 0;
 
             for (int b = 0; b < 8; b++) {
-                if (children[b].data.density != 0) {
-                    sum += children[b].data.density;
+                if (children[b].voxelData.signedDistance != 0) {
+                    sum += children[b].voxelData.signedDistance;
                     realCount++;
                 }
             }
 
             if (realCount > 0) {
-                return (byte)(sum / realCount);
+                return sum / realCount;
             } else {
                 return 0;
             }
@@ -180,8 +198,8 @@ namespace ReefEditor.VoxelEditing {
             }
             return childrenIdentical &&
             size == other.size &&
-            data.type == other.data.type &&
-            data.density == other.data.density;
+            voxelData.blocktype == other.voxelData.blocktype &&
+            voxelData.signedDistance == other.voxelData.signedDistance;
         }
 
         // constants

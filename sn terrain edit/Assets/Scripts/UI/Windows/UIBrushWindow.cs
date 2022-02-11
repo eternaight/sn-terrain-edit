@@ -62,7 +62,7 @@ namespace ReefEditor.UI {
         }
         public void SetNewBlocktype() {
             if (byte.TryParse(blocktypeInput.text, out byte typeValue)) {
-                if (ContentLoading.SNContentLoader.instance.blocktypesData[typeValue].ExistsInGame) {
+                if (VoxelMetaspace.instance.CheckBlocktypeDefined(typeValue)) {
                     brushMaster.SetBrushBlocktype(typeValue);
                 }
             }

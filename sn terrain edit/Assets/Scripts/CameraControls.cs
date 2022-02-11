@@ -19,7 +19,7 @@ namespace ReefEditor {
 
         private BrushMaster brushMaster;
 
-        void OnRegionLoad() {
+        private void OnRegionLoad() {
             moveLock = false;
             zoomLevel = 0.25f;
             transform.parent.rotation = Quaternion.Euler(new Vector3(30, -135, 0));
@@ -32,6 +32,7 @@ namespace ReefEditor {
 
         private void Start() {
             brushMaster = VoxelMetaspace.instance.brushMaster;
+            VoxelMetaspace.instance.OnRegionLoaded += OnRegionLoad;
         }
         private void Update() {
 

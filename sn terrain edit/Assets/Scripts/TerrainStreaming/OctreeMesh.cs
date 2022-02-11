@@ -40,12 +40,13 @@ namespace ReefEditor.Streaming {
                 for (int y = 0; y < arraySize.y; y++) {
                     for (int x = 0; x < arraySize.x; x++) {
                         // 5-1, 4-2, 3-4, ... 0-32 
-                        var localVoxel = new Vector3Int(x, y, z) * (1 << (5 - maxOctreeHeight));
+                        var localVoxel = new Vector3Int(x, y, z) * (int)Mathf.Pow(2, 5 - maxOctreeHeight);
                         var voxel = VoxelMetaspace.instance.GetOctnodeVoxel(worldOriginVoxel + localVoxel, maxOctreeHeight);
-                        var id = Globals.LinearIndex(x, y, z, arraySize);
-                        if (voxel is null) voxel = new OctNodeData();
-                        typeGrid[id] = voxel.type;
-                        densityGrid[id] = voxel.density;
+                        if (voxel is null) voxel = new VoxelData();
+
+                        var id = Utilities.LinearIndex(x, y, z, arraySize);
+                        typeGrid[id] = voxel.blocktype;
+                        densityGrid[id] = voxel.Encode().density;
                     }
                 }
             }
@@ -59,7 +60,7 @@ namespace ReefEditor.Streaming {
 
                 Material[] materials = new Material[blocktypes.Length];
                 for (int b = 0; b < blocktypes.Length; b++) {
-                    materials[b] = SNContentLoader.GetMaterialForType(blocktypes[b]);
+                    materials[b] = VoxelMetaspace.instance.GetMaterialForBlocktype(blocktypes[b]);
                 }
                 gameObject.GetComponent<MeshRenderer>().materials = materials;
             } else {

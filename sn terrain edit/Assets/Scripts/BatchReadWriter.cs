@@ -6,20 +6,10 @@ using ReefEditor.VoxelEditing;
 using ReefEditor.UI;
 
 namespace ReefEditor {
-    public class BatchReadWriter : MonoBehaviour {
-        public static BatchReadWriter readWriter;
+    public static class BatchReadWriter {
 
-        public bool busy = false;
-
-        public delegate bool ReadFinishedCall(OctNode[,,] nodes); 
-
-        void Awake() {
-            readWriter = this;
-        }
-
-        public IEnumerator<OctNode> ReadBatch(Vector3Int batchIndex) {
+        public static IEnumerator<OctNode> ReadBatch(Vector3Int batchIndex) {
             string batchname = string.Format("\\compiled-batch-{0}-{1}-{2}.optoctrees", batchIndex.x, batchIndex.y, batchIndex.z);
-            busy = true;
 
             Vector3Int octreeDimensions = Vector3Int.one * 5;
             if (batchIndex.x == 25) octreeDimensions.x = 3;
@@ -28,9 +18,9 @@ namespace ReefEditor {
             int countOctrees = 0;
             int expectedOctrees = octreeDimensions.x * octreeDimensions.y * octreeDimensions.z;
 
-            if (File.Exists(Globals.instance.batchSourcePath + batchname)) {
+            if (File.Exists(EditorManager.instance.batchSourcePath + batchname)) {
 
-                BinaryReader reader = new BinaryReader(File.Open(Globals.instance.batchSourcePath + batchname, FileMode.Open));
+                BinaryReader reader = new BinaryReader(File.Open(EditorManager.instance.batchSourcePath + batchname, FileMode.Open));
                 reader.ReadInt32();
                 
                 // assemble a data array
@@ -86,24 +76,21 @@ namespace ReefEditor {
                     yield return node;
                 }
             }
-
-            busy = false;
         } 
 
-        public IEnumerator WriteOptOctreesCoroutine(VoxelMetaspace metaspace) {
+        public static IEnumerator WriteOptOctreesCoroutine(VoxelMetaspace metaspace) {
             foreach (var batchId in metaspace.BatchIndices()) {
                 var nodes = metaspace.OctreesOfBatch(batchId);
                 WriteOptoctrees(batchId, nodes);
                 yield return null;
             }
         } 
-        private bool WriteOptoctrees(Vector3 batchIndex, IEnumerator<OctNode> rootNodes) { 
+        private static bool WriteOptoctrees(Vector3 batchIndex, IEnumerator<OctNode> rootNodes) { 
             string batchname = string.Format("\\compiled-batch-{0}-{1}-{2}.optoctrees", batchIndex.x, batchIndex.y, batchIndex.z);
-            busy = true;
             
-            Debug.Log($"Writing {batchname} to {Globals.instance.batchOutputPath}");
+            Debug.Log($"Writing {batchname} to {EditorManager.instance.batchOutputPath}");
 
-            BinaryWriter writer = new BinaryWriter(File.Open(Globals.instance.batchOutputPath + batchname, FileMode.OpenOrCreate));
+            BinaryWriter writer = new BinaryWriter(File.Open(EditorManager.instance.batchOutputPath + batchname, FileMode.OpenOrCreate));
             writer.Write(4);
             
             while (rootNodes.MoveNext()) { 
@@ -111,16 +98,13 @@ namespace ReefEditor {
             }
 
             writer.Close();
-            busy = false;
             return true;
         }
         
-        public IEnumerator WriteOctreePatchCoroutine(VoxelMetaspace metaspace) {
-            
-            busy = true;
-            Debug.Log($"Writing world patch as {Globals.instance.batchOutputPath}");
+        public static IEnumerator WriteOctreePatchCoroutine(VoxelMetaspace metaspace) {
+            Debug.Log($"Writing world patch as {EditorManager.instance.batchOutputPath}");
 
-            BinaryWriter writer = new BinaryWriter(File.Open(Globals.instance.batchOutputPath, FileMode.Create));
+            BinaryWriter writer = new BinaryWriter(File.Open(EditorManager.instance.batchOutputPath, FileMode.Create));
             // write version
             writer.Write(0u);
     	    
@@ -159,12 +143,11 @@ namespace ReefEditor {
             }
 
             writer.Close();
-            busy = false;
         }
 
-        private void WriteOctree(BinaryWriter writer, OctNode root) {
+        private static void WriteOctree(BinaryWriter writer, OctNode root) {
             //assemble the octnode array
-            List<OctNodeData> nodes = new List<OctNodeData>();
+            var nodes = new List<OctNodeData>();
             root.WriteToArray(nodes);
 
             // write number of nodes in this octree

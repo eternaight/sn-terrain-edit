@@ -7,31 +7,35 @@ using ReefEditor.VoxelEditing;
 
 namespace ReefEditor.UI {
     public class UIMaterialsWindow : UIWindow {
-        GameObject matIconPrefab;
-        bool materialsLoaded = false;
-        List<UIBlocktypeIconDisplay> icons;
+        private GameObject matIconPrefab;
+        private List<UIBlocktypeIconDisplay> icons;
+
+        private SNContentLoader loader;
+        private bool iconsSpawned = false;
 
         void Start() {
             if (matIconPrefab == null)
                 matIconPrefab = Resources.Load<GameObject>("UI Material Icon");
+            loader = EditorManager.GetContentLoader();
         }
 
         public override void EnableWindow() {
             base.EnableWindow();
-            transform.GetChild(1).GetChild(0).GetComponent<Text>().text = $"Load {(Globals.instance.belowzero ? "BZ" : "SN")} materials";
+            transform.GetChild(1).GetChild(0).GetComponent<Text>().text = $"Load {(EditorManager.BelowZero ? "BZ" : "SN")} materials";
         }
 
         public void LoadMaterials() {
 
-            if (!Globals.CheckIsGamePathValid()) {
+            if (!EditorManager.CheckIsGamePathValid()) {
                 EditorUI.DisplayErrorMessage("Please select a valid game path");
                 return;
             }
             transform.GetChild(1).gameObject.SetActive(false);
             transform.GetChild(2).gameObject.SetActive(true);
 
-            if (!materialsLoaded) {
-                StartCoroutine(DisplayMaterialIcons());
+            if (!EditorManager.GetContentLoader().IsFinished()) {
+                EditorManager.instance.OnContentLoaded += DisplayMaterialIcons;
+                EditorManager.InitiateMaterialsLoad();
             }
         }
 
@@ -46,20 +50,11 @@ namespace ReefEditor.UI {
             (transform.GetChild(2).GetChild(0).GetChild(0) as RectTransform).offsetMin = new Vector2(0, -225 * Mathf.Ceil(transform.GetChild(2).GetChild(0).GetChild(0).GetChild(0).childCount / 2f));
         }
 
-        IEnumerator DisplayMaterialIcons() {
-            materialsLoaded = true;
-
-            StartCoroutine(SNContentLoader.instance.LoadContent());
-            while(SNContentLoader.instance.busyLoading) {
-                EditorUI.UpdateStatusBar(SNContentLoader.instance.loadState, SNContentLoader.instance.loadProgress);
-                yield return null;
-            }
-
-            EditorUI.DisableStatusBar();
-
+        private void DisplayMaterialIcons() {
+            if (iconsSpawned) return;
             icons = new List<UIBlocktypeIconDisplay>();
 
-            foreach(BlocktypeMaterial mat in SNContentLoader.instance.blocktypesData) {
+            foreach(BlocktypeMaterial mat in loader.blocktypesData) {
                 if (mat != null && mat.ExistsInGame) {
                     GameObject newIconGameObj = Instantiate(matIconPrefab, transform.GetChild(2).GetChild(0).GetChild(0).GetChild(0));
                     UIBlocktypeIconDisplay newicon = new UIBlocktypeIconDisplay(newIconGameObj, mat);
@@ -68,10 +63,10 @@ namespace ReefEditor.UI {
             }
             ResizeContent();
             UpdateIconVisibility();
+            iconsSpawned = true;
         }
 
         private bool IsIconVisible(RectTransform rectTf) {
-            //RectTransform scrollViewTf = transform.GetChild(2).GetChild(0) as RectTransform;
             return rectTf.position.y > 0 & rectTf.position.y < 1080;
         } 
 

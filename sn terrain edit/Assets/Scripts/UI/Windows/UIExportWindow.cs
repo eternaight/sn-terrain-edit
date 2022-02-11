@@ -6,6 +6,7 @@ namespace ReefEditor.UI {
     public class UIExportWindow : UIWindow {
         UICheckbox checkbox;
         UIButtonSelect modeSelection;
+        private bool exportIntoCache;
 
         GameObject checkboxGroup => transform.GetChild(2).GetChild(1).gameObject;
 
@@ -18,12 +19,16 @@ namespace ReefEditor.UI {
             switch (modeSelection.selection) {
                 case 0:
                     // Export some .optoctrees files
-                    string[] paths = StandaloneFileBrowser.OpenFolderPanel("Select export folder...", Application.dataPath, false);
-                    if (paths.Length == 0) {
-                        // user cancels
-                        return;
+                    if (!exportIntoCache) {
+                        string[] paths = StandaloneFileBrowser.OpenFolderPanel("Select export folder...", Application.dataPath, false);
+                        if (paths.Length == 0) {
+                            // user cancels
+                            return;
+                        }
+                        EditorManager.SetBatchOutputPath(paths[0], true);
+                    } else {
+                        EditorManager.SetBatchOutputPath(EditorManager.instance.batchSourcePath, false);
                     }
-                    Globals.instance.userBatchOutputPath = paths[0];
                     break;
                 case 1:
                     // Save .optoctreepatch file
@@ -32,7 +37,7 @@ namespace ReefEditor.UI {
                         // user cancels
                         return;
                     }
-                    Globals.instance.userBatchOutputPath = path;
+                    EditorManager.SetBatchOutputPath(path, true);
                     break;
                 case 2:
                     // Save .fbx file
@@ -41,28 +46,24 @@ namespace ReefEditor.UI {
                         // user cancels
                         return;
                     }
-                    Globals.instance.userBatchOutputPath = path;
+                    EditorManager.SetBatchOutputPath(path, true);
                     break;
-            }
-            if (modeSelection.selection == 1) {
-            }
-            else {
             }
 
             VoxelMetaspace.instance.OnRegionExported += EditorUI.DisableStatusBar;
             EditorUI.UpdateStatusBar("Exporting...", 1);
 
-            VoxelMetaspace.instance.ExportRegion(modeSelection.selection);
+            VoxelMetaspace.InitiateRegionExport(modeSelection.selection);
         }
 
         public void OnCheckboxInteract() {
-            Globals.instance.exportIntoGame = checkbox.check;
+            exportIntoCache = checkbox.check;
         }
 
         public void OnModeChanged() {
             if (modeSelection.selection != 0) {
                 checkboxGroup.SetActive(false);
-                Globals.instance.exportIntoGame = false;
+                exportIntoCache = false;
             } else {
                 checkboxGroup.SetActive(true);
                 OnCheckboxInteract();

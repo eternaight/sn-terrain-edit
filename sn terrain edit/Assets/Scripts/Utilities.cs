@@ -1,7 +1,16 @@
 ﻿using UnityEngine;
 
 namespace ReefEditor {
-    public static class CollisionUtilities {
+    public static class Utilities {
+        public static int LinearIndex(int x, int y, int z, int dim) {
+            return LinearIndex(x, y, z, Vector3Int.one * dim);
+        }
+        public static int LinearIndex(Vector3Int index, Vector3Int dim) {
+            return LinearIndex(index.x, index.y, index.z, dim);
+        }
+        public static int LinearIndex(int x, int y, int z, Vector3Int dim) {
+            return x + y * dim.x + z * dim.x * dim.y;
+        }
         public static bool RayIntersectsBox(Ray ray, Vector3 boxStart, Vector3 boxEnd) {
             
             // Ray marching yeah why not

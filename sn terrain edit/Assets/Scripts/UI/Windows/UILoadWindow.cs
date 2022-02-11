@@ -6,7 +6,7 @@ namespace ReefEditor.UI {
     public class UILoadWindow : UIWindow {
         public void LoadBatch() {
 
-            if (!Globals.CheckIsGamePathValid()) {
+            if (!EditorManager.CheckIsGamePathValid()) {
                 EditorUI.DisplayErrorMessage("Please select a valid game path");
                 return;
             }
@@ -27,18 +27,9 @@ namespace ReefEditor.UI {
             if (!startEntered) start = end; 
             if (!endEntered) end = start;
 
-            EditorUI.inst.StartCoroutine(LoadCoroutine(start, end));
+            VoxelMetaspace.InitiateRegionLoad(start, end);
             base.DisableWindow();
-        }
-
-        IEnumerator LoadCoroutine(Vector3Int start, Vector3Int end) {
-            VoxelMetaspace.instance.LoadRegion(start, end);
-            while (VoxelMetaspace.instance.loadInProgress) {
-                EditorUI.UpdateStatusBar(VoxelMetaspace.instance.loadingState, VoxelMetaspace.instance.loadingProgress);
-                yield return null;
-            }
-            EditorUI.DisableStatusBar();
-        }
+        } 
 
         private bool TryParseBatchString(string s, out Vector3Int index) {
             

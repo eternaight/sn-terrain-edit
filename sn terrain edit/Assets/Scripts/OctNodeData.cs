@@ -43,21 +43,15 @@ namespace ReefEditor {
             return signedDist >= 126;
         }
 
-        public float GetDensity() {
-            if (density == 0) {
-                return (type == 0 ? -1 : 1);
-            }
-            return (density - 126) / 126f;
-        }
         public static float DecodeDensity(byte densityByte) {
             return (densityByte - 126) / 126f;
         }
-        public static byte EncodeDensity(float densityValue) {
-            return (byte)(Mathf.Clamp(densityValue, -1, 1) * 126 + 126);
+        public static byte EncodeDensity(float distanceValue) {
+            return (byte)(Mathf.Clamp(distanceValue, -1, 1) * 126 + 126);
         }
 
         public override string ToString() {
-            return $"OctNode(t: {type}, d: {density}, c: {childPosition})";
+            return $"OctNodeData(t: {type}, d: {density}, c: {childPosition})";
         }
 
         public override bool Equals(object obj) {

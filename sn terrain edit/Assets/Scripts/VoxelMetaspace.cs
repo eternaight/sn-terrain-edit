@@ -1,16 +1,17 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using ReefEditor.ContentLoading;
 using ReefEditor.Streaming;
 using ReefEditor.VoxelEditing;
 using UnityEngine;
 
 namespace ReefEditor {
-    public class VoxelMetaspace : MonoBehaviour
-    {
+    public class VoxelMetaspace : MonoBehaviour {
         public static VoxelMetaspace instance;
 
         private OctNode[] rootNodes;
+        private BlocktypeMaterial[] blocktypes;
 
         public TerrainStreamer streamer;
         public BrushMaster brushMaster;
@@ -20,11 +21,6 @@ namespace ReefEditor {
         private const int BIGGEST_NODE = 32;
         private const int TREES_PER_BATCH = 125;
         private const int TREES_PER_BATCH_SIDE = 5;
-
-        // loading fields
-        public bool loadInProgress = false;
-        public float loadingProgress;
-        public string loadingState;
 
         public event Action OnRegionLoaded;
         public event Action OnRegionExported;
@@ -51,6 +47,22 @@ namespace ReefEditor {
             brushMaster.Start();
         }
 
+        public static void InitiateRegionLoad(Vector3Int choiceA, Vector3Int choiceB) {
+            var reader = new MetaspaceReader();
+            reader.inputA = choiceA;
+            reader.inputB = choiceB;
+            EditorManager.GetLoading().OnQueueEmpty += instance.OnRegionLoaded;
+            EditorManager.GetLoading().AddLoader(reader);
+            EditorManager.GetLoading().AddLoader(instance.streamer);
+
+        }
+        public static void InitiateRegionExport(int exportMode) {
+            var writer = new MetaspaceWriter();
+            writer.mode = exportMode;
+            EditorManager.GetLoading().OnQueueEmpty += instance.OnRegionExported;
+            EditorManager.GetLoading().AddLoader(writer);
+        }
+
         private void Initialize(Vector3Int octreeMin, Vector3Int octreeMax) {
             _octreeMin = octreeMin;
             _octreeMax = octreeMax;
@@ -65,8 +77,11 @@ namespace ReefEditor {
             rootNodes = null;
             streamer.ClearRegion();
         }
+        public void ReceiveMaterials(BlocktypeMaterial[] mats) {
+            blocktypes = mats;
+        }
 
-        public OctNodeData GetOctnodeVoxel(Vector3Int voxel, int maxSearchHeight) {
+        public VoxelData GetOctnodeVoxel(Vector3Int voxel, int maxSearchHeight) {
             if (OctreeExists(voxel / BIGGEST_NODE)) {
                 var node = rootNodes[GetLabel(voxel / BIGGEST_NODE)];
                 return node.GetVoxel(voxel, maxSearchHeight);
@@ -102,9 +117,9 @@ namespace ReefEditor {
         }
 
         public void ApplyVoxelGrid(IVoxelGrid grid) {
-            var bounds = grid.GetBounds();
-            var octreeMin = bounds[0] / BIGGEST_NODE;
-            var octreeMax = bounds[1] / BIGGEST_NODE;
+            Vector3Int[] bounds = grid.GetBounds();
+            Vector3Int octreeMin = bounds[0] / BIGGEST_NODE;
+            Vector3Int octreeMax = bounds[1] / BIGGEST_NODE;
 
             for (int z = octreeMin.z; z <= octreeMax.z; z++) {
                 for (int y = octreeMin.y; y <= octreeMax.y; y++) {
@@ -133,12 +148,12 @@ namespace ReefEditor {
                 return SampleBlocktype(newPoint, cameraRay, retryCount + 1);
             }
 
-            return rootNodes[GetLabel(treeId)].GetVoxel(voxel, 5).type;
+            return rootNodes[GetLabel(treeId)].GetVoxel(voxel, 5).blocktype;
         }
 
         public bool VoxelExists(int x, int y, int z) {
-            return  x >= _octreeMin.x * BIGGEST_NODE && x < (_octreeMax.x + 1) * BIGGEST_NODE && 
-                    y >= _octreeMin.y * BIGGEST_NODE && y < (_octreeMax.y + 1) * BIGGEST_NODE && 
+            return x >= _octreeMin.x * BIGGEST_NODE && x < (_octreeMax.x + 1) * BIGGEST_NODE &&
+                    y >= _octreeMin.y * BIGGEST_NODE && y < (_octreeMax.y + 1) * BIGGEST_NODE &&
                     z >= _octreeMin.z * BIGGEST_NODE && z < (_octreeMax.z + 1) * BIGGEST_NODE;
         }
         public bool OctreeExists(Vector3Int index) {
@@ -159,67 +174,122 @@ namespace ReefEditor {
             int localX = x - _octreeMin.x;
             int localY = y - _octreeMin.y;
             int localZ = z - _octreeMin.z;
-            return Globals.LinearIndex(localX, localY, localZ, OctreeCounts);
+            return Utilities.LinearIndex(localX, localY, localZ, OctreeCounts);
         }
 
-        public void LoadRegion(Vector3Int pointA, Vector3Int pointB) {
-
-            var start = new Vector3Int(Mathf.Min(pointA.x, pointB.x), Mathf.Min(pointA.y, pointB.y), Mathf.Min(pointA.z, pointB.z));
-            var end = new Vector3Int(Mathf.Max(pointA.x, pointB.x), Mathf.Max(pointA.y, pointB.y), Mathf.Max(pointA.z, pointB.z));
-            Debug.Log($"Reading {start} to {end}");
-
-            StartCoroutine(RegionLoadCoroutine(start, end));
+        public Material GetMaterialForBlocktype(int blocktype) => blocktypes[blocktype].MakeMaterial();
+        public bool CheckBlocktypeDefined(int blocktype) {
+            var gg = blocktypes[blocktype];
+            if (gg == null) return false;
+            return gg.ExistsInGame;
         }
-        private IEnumerator RegionLoadCoroutine(Vector3Int minBatch, Vector3Int maxBatch) {
 
-            if (regionLoaded) {
-                Clear();
+        private class MetaspaceReader : ILoader {
+
+            // loading parameters
+            public Vector3Int inputA;
+            public Vector3Int inputB;
+
+            private bool loadingDone = false;
+            private float loadingProgress;
+            private string loadingState;
+
+            public string GetTaskDescription() => loadingState;
+
+            public float GetTaskProgress() => loadingProgress;
+
+            public bool IsFinished() => loadingDone;
+
+            public void StartLoading() {
+                LoadRegion(inputA, inputB);
             }
-            Initialize(minBatch * 5, maxBatch * 5 + Vector3Int.one * 4);
 
-            regionLoaded = true;
-            loadInProgress = true;
+            private void LoadRegion(Vector3Int pointA, Vector3Int pointB) {
 
-            foreach (Vector3Int batchId in BatchIndices()) {
-                loadingProgress = 0.5f;
-                loadingState = $"Reading batch {batchId}";
-                var nodes = BatchReadWriter.readWriter.ReadBatch(batchId);
-                var labels = OctreeLabelsOfBatch(batchId);
+                var start = new Vector3Int(Mathf.Min(pointA.x, pointB.x), Mathf.Min(pointA.y, pointB.y), Mathf.Min(pointA.z, pointB.z));
+                var end = new Vector3Int(Mathf.Max(pointA.x, pointB.x), Mathf.Max(pointA.y, pointB.y), Mathf.Max(pointA.z, pointB.z));
+                Debug.Log($"Reading {start} to {end}");
 
-                foreach (int label in labels) {
-                    nodes.MoveNext();
-                    rootNodes[label] = nodes.Current;
-                    yield return null;
+                loadingDone = false;
+                instance.StartCoroutine(RegionLoadCoroutine(start, end));
+            }
+            private IEnumerator RegionLoadCoroutine(Vector3Int minBatch, Vector3Int maxBatch) {
+
+                if (instance.regionLoaded) {
+                    instance.Clear();
+                }
+                instance.Initialize(minBatch * 5, maxBatch * 5 + Vector3Int.one * 4);
+
+                instance.regionLoaded = true;
+
+                var batchCount = instance.CountBatches();
+                int i = 0;
+                foreach (Vector3Int batchId in instance.BatchIndices()) {
+                    loadingProgress = ++i / batchCount;
+                    loadingState = $"Reading batch {batchId}";
+                    var nodes = BatchReadWriter.ReadBatch(batchId);
+                    var labels = instance.OctreeLabelsOfBatch(batchId);
+
+                    foreach (int label in labels) {
+                        nodes.MoveNext();
+                        instance.rootNodes[label] = nodes.Current;
+                        yield return null;
+                    }
+                }
+
+                loadingDone = true;
+            }
+        }
+
+
+        private class MetaspaceWriter : ILoader {
+
+            public int mode;
+            private bool finished;
+
+            public string GetTaskDescription() {
+                switch (mode) {
+                    case 0:
+                        return "Writing optoctree files...";
+                    case 1:
+                        return "Writing world patch...";
+                    case 2:
+                        return "Writing FBX file...";
+                    default:
+                        return "Unexpected export option!";
                 }
             }
 
-            yield return streamer.RestartStreaming();
-
-            OnRegionLoaded?.Invoke();
-            Globals.RedrawBoundaryPlanes();
-            Camera.main.gameObject.SendMessage("OnRegionLoad");
-        }
-        public void ExportRegion(int mode) {
-            StartCoroutine(ExportCoroutine(mode));
-        }
-        private IEnumerator ExportCoroutine(int mode) {
-            switch (mode) {
-                case 0:
-                    yield return BatchReadWriter.readWriter.WriteOptOctreesCoroutine(this);
-                    break;
-                case 1:
-                    yield return BatchReadWriter.readWriter.WriteOctreePatchCoroutine(this);
-                    break;
-                case 2:
-                    yield return ExportFBX.ExportMetaspaceAsync(streamer, Globals.instance.batchOutputPath);
-                    break;
-                default:
-                    Debug.LogError("Unexpected export mode!");
-                    break;
+            public float GetTaskProgress() {
+                return 0;
             }
 
-            OnRegionExported();
-            yield break;
+            public bool IsFinished() => finished;
+
+            public void StartLoading() {
+                finished = false;
+                instance.StartCoroutine(ExportCoroutine(mode));
+            }
+
+            private IEnumerator ExportCoroutine(int mode) {
+                switch (mode) {
+                    case 0:
+                        yield return BatchReadWriter.WriteOptOctreesCoroutine(instance);
+                        break;
+                    case 1:
+                        yield return BatchReadWriter.WriteOctreePatchCoroutine(instance);
+                        break;
+                    case 2:
+                        yield return ExportFBX.ExportMetaspaceAsync(instance.streamer, EditorManager.instance.batchOutputPath);
+                        break;
+                    default:
+                        Debug.LogError("Unexpected export mode!");
+                        break;
+                }
+
+                finished = true;
+                yield break;
+            }
         }
     }
 }

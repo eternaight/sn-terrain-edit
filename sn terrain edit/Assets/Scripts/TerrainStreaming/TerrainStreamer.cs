@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 namespace ReefEditor.Streaming {
-    public class TerrainStreamer {
+    public class TerrainStreamer : ILoader {
         public OctreeMesh[][][] meshes;
 
         private Vector3Int _octreeMin;
@@ -11,6 +11,8 @@ namespace ReefEditor.Streaming {
         private int _biggestNode;
 
         private Queue<StreamItem> queue;
+        private StreamItem itemNow;
+        private int queueStartCount;
 
         public TerrainStreamer() {
             queue = new Queue<StreamItem>();
@@ -66,13 +68,30 @@ namespace ReefEditor.Streaming {
             while (queue.Count > 0) {
                 var item = queue.Dequeue();
                 meshes[item.octree.z][item.octree.y][item.octree.x].ReloadMesh(item.level, _biggestNode);
-                Debug.Log("Reloaded mesh for " + (item.octree + _octreeMin));
+                //Debug.Log("Reloaded mesh for " + (item.octree + _octreeMin));
                 yield return null;
             }
         }
 
         public void AddOctreeToStream(Vector3Int localIndex) {
             queue.Enqueue(new StreamItem() { octree = localIndex, level = 5 });
+        }
+
+        public void StartLoading() {
+            queueStartCount = queue.Count;
+            VoxelMetaspace.instance.StartCoroutine(RestartStreaming());
+        }
+
+        public bool IsFinished() {
+            return queue.Count == 0;
+        }
+
+        public float GetTaskProgress() {
+            return (float)queue.Count / queueStartCount;
+        }
+
+        public string GetTaskDescription() {
+            return $"Streaming batch {(itemNow.octree + _octreeMin) / 5}";
         }
 
         private struct StreamItem {

@@ -12,10 +12,6 @@ namespace ReefEditor.UI {
             inst = this;
         }
 
-        private void Start() {
-
-        }
-
         public static void UpdateStatusBar(string title, float val) {
             inst.statusBar.gameObject.SetActive(true);
 

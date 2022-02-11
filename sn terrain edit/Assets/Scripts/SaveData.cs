@@ -14,11 +14,8 @@ namespace ReefEditor {
             // read from save
             Load();
 
-            Globals.SetGamePath(data.GetValue(Globals.sourcePathKey), false);
-            Globals.SetBatchOutputPath(data.GetValue(Globals.outputPathKey), false);
-        }
-
-        void Start() {
+            EditorManager.SetGamePath(data.GetValue(EditorManager.sourcePathKey), false);
+            EditorManager.SetBatchOutputPath(data.GetValue(EditorManager.outputPathKey), false);
         }
 
         public static void WriteKey(string key, string value) {

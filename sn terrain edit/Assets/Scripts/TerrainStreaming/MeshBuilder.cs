@@ -62,7 +62,7 @@ namespace ReefEditor {
 
             CreateBuffers(resolution);
 
-            int numThreads = Mathf.CeilToInt ((resolution.x) / (float) Globals.threadGroupSize);
+            int numThreads = Mathf.CeilToInt (resolution.x / (float) EditorManager.threadGroupSize);
 
             if (typeGrid == null) typeGrid = new byte[resolution.x * resolution.y * resolution.z];
 
@@ -126,7 +126,7 @@ namespace ReefEditor {
                     for (int v = 0; v < 4; v++) {
                         Vector3 dcCube = meshFace[v];
                         if (dcCube.x >= 0 && dcCube.x < resolution.x && dcCube.y >= 0 && dcCube.y < resolution.y && dcCube.z >= 0 && dcCube.z < resolution.z) {
-                            int i = Globals.LinearIndex((int)dcCube.x, (int)dcCube.y, (int)dcCube.z, resolution);
+                            int i = Utilities.LinearIndex((int)dcCube.x, (int)dcCube.y, (int)dcCube.z, resolution);
                             verticesOfNodes[i].AddNeigFace(meshFace);
                             verticesOfNodes[i].isSet = true;
                             verticesOfNodes[i].addedToVertexArray = false;
@@ -165,10 +165,10 @@ namespace ReefEditor {
                     if (!faceNow.IsPartOfMesh(resolution.x)) continue;
 
                     int[] vertIndices = {
-                        Globals.LinearIndex((int)faceNow[0].x, (int)faceNow[0].y, (int)faceNow[0].z, resolution),
-                        Globals.LinearIndex((int)faceNow[1].x, (int)faceNow[1].y, (int)faceNow[1].z, resolution),
-                        Globals.LinearIndex((int)faceNow[2].x, (int)faceNow[2].y, (int)faceNow[2].z, resolution),
-                        Globals.LinearIndex((int)faceNow[3].x, (int)faceNow[3].y, (int)faceNow[3].z, resolution)
+                        Utilities.LinearIndex((int)faceNow[0].x, (int)faceNow[0].y, (int)faceNow[0].z, resolution),
+                        Utilities.LinearIndex((int)faceNow[1].x, (int)faceNow[1].y, (int)faceNow[1].z, resolution),
+                        Utilities.LinearIndex((int)faceNow[2].x, (int)faceNow[2].y, (int)faceNow[2].z, resolution),
+                        Utilities.LinearIndex((int)faceNow[3].x, (int)faceNow[3].y, (int)faceNow[3].z, resolution)
                     };
                     
                     // A, B, C, D
@@ -194,87 +194,7 @@ namespace ReefEditor {
             return mesh;
         }
 
-        public void ProcessSimpleBatch(Vector3[] vertices, int[] triangles, Vector3[] normals, Vector2[] uvs, ref int lastFace, int[,,] octrees, Vector3 offset) {
-            for (int z = 0; z < 5; z++) {
-                for (int y = 0; y < 5; y++) {
-                    for (int x = 0; x < 5; x++) {
-
-                        if (octrees[z, y, x] != 0) {
-                            Vector3 o = new Vector3(x, y, z) + offset;
-                            if (x == 4 || octrees[z, y, x + 1] == 0) {
-                                AddFaceToMesh(vertices, triangles, normals, uvs, ref lastFace, Vector3.forward, Vector3.up, o + Vector3.right);
-                            }
-                            if (x == 0 || octrees[z, y, x - 1] == 0) {
-                                AddFaceToMesh(vertices, triangles, normals, uvs, ref lastFace, Vector3.up, Vector3.forward, o);
-                            }
-                            if (y == 4 || octrees[z, y + 1, x] == 0) {
-                                AddFaceToMesh(vertices, triangles, normals, uvs, ref lastFace, Vector3.right, Vector3.forward, o + Vector3.up);
-                            }
-                            if (y == 0 || octrees[z, y - 1, x] == 0) {
-                                AddFaceToMesh(vertices, triangles, normals, uvs, ref lastFace, Vector3.forward, Vector3.right, o);
-                            }
-                            if (z == 4 || octrees[z + 1, y, x] == 0) {
-                                AddFaceToMesh(vertices, triangles, normals, uvs, ref lastFace, Vector3.up, Vector3.right, o + Vector3.forward);
-                            }
-                            if (z == 0 || octrees[z - 1, y, x] == 0) {
-                                AddFaceToMesh(vertices, triangles, normals, uvs, ref lastFace, Vector3.right, Vector3.up, o);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        void AddFaceToMesh(Vector3[] vertices, int[] triangles, Vector3[] normals, Vector2[] uvs, ref int start, Vector3 a, Vector3 b, Vector3 o) {
-
-            vertices[start] = o + b;
-            vertices[start + 1] = o + a + b;
-            vertices[start + 2] = o + a;
-            vertices[start + 3] = o;
-
-            triangles[start] = start;
-            triangles[start + 1] = start + 1;
-            triangles[start + 2] = start + 2;
-            triangles[start + 3] = start + 3;
-
-            Vector3 n = Vector3.Cross(a, b);
-            normals[start] = n;
-            normals[start + 1] = n;
-            normals[start + 2] = n;
-            normals[start + 3] = n;
-
-            uvs[start] = new Vector2(vertices[start].x / 125f, vertices[start].z / 125f);
-            uvs[start + 1] = new Vector2(vertices[start + 1].x / 125f, vertices[start + 1].z / 125f);
-            uvs[start + 2] = new Vector2(vertices[start + 2].x / 125f, vertices[start + 2].z / 125f);
-            uvs[start + 3] = new Vector2(vertices[start + 3].x / 125f, vertices[start + 3].z / 125f);
-
-            start += 4;
-            if (start > 65532) {
-                WrapMeshIntoGameObject(vertices, triangles, normals, uvs, ref start);
-            }
-        }
-
-        public void WrapMeshIntoGameObject(Vector3[] vertices, int[] indices, Vector3[] normals, Vector2[] uvs, ref int start) {
-            
-            Mesh mesh = new Mesh();
-            mesh.vertices = vertices;
-            mesh.normals = normals;
-            mesh.uv = uvs;
-            mesh.SetIndices(indices, MeshTopology.Quads, 0, false);
-            mesh.RecalculateNormals();
-
-            GameObject go = new GameObject("SimpleMapMesh");
-            go.AddComponent<MeshFilter>().mesh = mesh;
-            go.AddComponent<MeshRenderer>().material = Globals.GetSimpleMapMat();
-
-            start = 0;
-            Array.Clear(vertices, 0, 65536);
-            Array.Clear(indices, 0, 65536);
-            Array.Clear(normals, 0, 65536);
-            Array.Clear(uvs, 0, 65536);
-        }
-
-        Vector2 BlockTypeToUV(int blockType) {
+        private Vector2 BlockTypeToUV(int blockType) {
             return new Vector2((blockType % 16)/16f, (blockType / 16)/16f);
         }
 

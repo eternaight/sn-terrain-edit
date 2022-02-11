@@ -9,6 +9,7 @@ namespace ReefEditor.VoxelEditing {
         public BrushMode userSelectedMode = BrushMode.Add;
 
         private GameObject brushGizmoObject;
+        private Color[] brushModesPalette;
 
         public event Action OnParametersChanged;
 
@@ -17,11 +18,12 @@ namespace ReefEditor.VoxelEditing {
         }
         public void Start() {
             CreateGizmo();
+            brushModesPalette = EditorManager.GetBrushModesPalette();
         }
 
         private void CreateGizmo() {
             brushGizmoObject = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            brushGizmoObject.GetComponent<MeshRenderer>().sharedMaterial = Globals.instance.brushGizmoMat;
+            brushGizmoObject.GetComponent<MeshRenderer>().sharedMaterial = Resources.Load<Material>("Materials/GizmoBrush");
             brushGizmoObject.GetComponent<SphereCollider>().enabled = false;
             brushGizmoObject.SetActive(false);
 
@@ -51,11 +53,11 @@ namespace ReefEditor.VoxelEditing {
                 brushGizmoObject.transform.localScale = Vector3.one * 2 * brush.radius;
             }
 
-            Globals.UpdateBoundaries(position, brush.radius + 2);
+            EditorManager.UpdateBoundaryMaterial(position, brush.radius + 2);
         }
         public void DisableBrushGizmo() {
             brushGizmoObject.SetActive(false);
-            Globals.UpdateBoundaries(Vector3.zero, 0);
+            EditorManager.UpdateBoundaryMaterial(Vector3.zero, 0);
         }
         public Light GetLightComponent() => brushGizmoObject.transform.GetChild(0).GetComponent<Light>();
 
@@ -73,10 +75,12 @@ namespace ReefEditor.VoxelEditing {
 
         public void BrushAction(RaycastHit hit, Ray ray, bool shift, bool ctrl) {
             var activeMode = ApplyModeModifiers(userSelectedMode, shift, ctrl);
+
+            Debug.Log("mode is now " + activeMode);
             if (activeMode == BrushMode.Eyedropper) {
                 SetBrushBlocktype(VoxelMetaspace.instance.SampleBlocktype(hit.point, ray));
             } else {
-                brush.TryStroke(hit);
+                brush.TryStroke(hit, activeMode);
             }
         }
         public void BrushStop() {
@@ -94,11 +98,13 @@ namespace ReefEditor.VoxelEditing {
             OnParametersChanged?.Invoke();
         }
         public void SetBrushStrength(float t) {
+            brush.strength = t;
+            OnParametersChanged?.Invoke();
         }
         public void SetBrushMode(int selection) {
             userSelectedMode = (BrushMode)selection;
-            if (selection < Globals.instance.brushColors.Length)
-                Globals.instance.brushGizmoMat.color = Globals.instance.brushColors[selection];
+            if (selection < brushModesPalette.Length)
+                brushGizmoObject.GetComponent<MeshRenderer>().sharedMaterial.color = brushModesPalette[selection];
             OnParametersChanged?.Invoke();
         }
 
@@ -119,8 +125,9 @@ namespace ReefEditor.VoxelEditing {
         public class Brush : IVoxelGrid {
 
             // user settings
-            public byte selectedBlocktype;
+            public byte selectedBlocktype = 1;
             public float radius;
+            public float strength;
             public BrushMode mode;
 
             // variables
@@ -132,35 +139,43 @@ namespace ReefEditor.VoxelEditing {
             private const float BRUSH_STROKE_PERIOD = 1;
 
             public bool GetMask(Vector3Int voxel) {
-                return Vector3.Distance(voxel, InVoxelSpace(position)) < radius;
+                return Vector3.Distance(voxel, InVoxelSpace(position)) <= radius;
             }
             private Vector3 InVoxelSpace(Vector3 p) => VoxelMetaspace.instance.transform.InverseTransformPoint(p);
-            public OctNodeData BlendVoxel(OctNodeData data, Vector3Int voxel) {
+            public void BlendVoxel(VoxelData data, Vector3Int voxel) {
                 switch (mode) {
                     case BrushMode.Add:
-                        return VoxelOps.VoxelAddSmooth(data, BrushDensity(voxel), selectedBlocktype);
+                        VoxelOps.VoxelAddSmooth(data, BrushDensity(voxel), selectedBlocktype);
+                        break;
                     case BrushMode.Remove:
-                        return VoxelOps.VoxelAddSmooth(data, 252 - BrushDensity(voxel), selectedBlocktype);
+                        VoxelOps.VoxelAddSmooth(data, -BrushDensity(voxel), selectedBlocktype);
+                        break;
                     case BrushMode.Paint:
-                        return new OctNodeData(selectedBlocktype, data.density);
+                        VoxelOps.VoxelPaint(data, selectedBlocktype);
+                        break;
                     case BrushMode.Flatten:
-                        return VoxelOps.VoxelFlatten(voxel, strokeOrigin, strokeNormal, selectedBlocktype);
+                        VoxelOps.VoxelFlatten(data, voxel, strokeOrigin, strokeNormal, selectedBlocktype);
+                        break;
                     case BrushMode.Smooth:
-                        return VoxelOps.VoxelSmooth(data, voxel, selectedBlocktype, 2);
+                        VoxelOps.VoxelSmooth(data, voxel, selectedBlocktype, 2);
+                        break;
                     default:
-                        return new OctNodeData();
+                        break;
                 };
             }
             public Vector3Int[] GetBounds() {
                 var a = InVoxelSpace(position);
                 var voxelPos = new Vector3Int((int)a.x, (int)a.y, (int)a.z);
+                var diagonal = Vector3Int.one * Mathf.CeilToInt(radius * 1.41f);
+
+                Debug.Log("Bounds are: " + ((voxelPos - diagonal) / 32) + " to " + ((voxelPos + diagonal) / 32));
                 return new Vector3Int[] {
-                    voxelPos - Vector3Int.one * Mathf.CeilToInt(radius),
-                    voxelPos + Vector3Int.one * Mathf.CeilToInt(radius)
+                    voxelPos - diagonal,
+                    voxelPos + diagonal
                 };
             }
 
-            public void TryStroke(RaycastHit hit) {
+            public void TryStroke(RaycastHit hit, BrushMode mode) {
 
                 if (!ReadyForNextStroke()) return;
 
@@ -169,6 +184,7 @@ namespace ReefEditor.VoxelEditing {
                     strokeNormal = hit.normal;
                 }
 
+                this.mode = mode;
                 position = hit.point;
                 lastStrokeTime = Time.time;
                 strokeLength++;
@@ -180,9 +196,9 @@ namespace ReefEditor.VoxelEditing {
                 strokeLength = 0;
             }
 
-            private byte BrushDensity(Vector3Int voxel) {
+            private float BrushDensity(Vector3Int voxel) {
                 float signedDist = radius - Vector3.Distance(voxel, InVoxelSpace(position));
-                return OctNodeData.EncodeDensity(signedDist);
+                return signedDist;
             }
 
             private bool ReadyForNextStroke() {

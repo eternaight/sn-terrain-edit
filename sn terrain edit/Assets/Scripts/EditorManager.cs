@@ -1,22 +1,32 @@
+using ReefEditor.ContentLoading;
+using System;
 using System.IO;
 using UnityEngine;
 
 namespace ReefEditor {
-    public class Globals : MonoBehaviour {
+    public class EditorManager : MonoBehaviour {
 
-        public static Globals instance;
+        public static EditorManager instance;
+        private SNContentLoader materialLoader;
+        private LoadingManager loadingManager;
 
-        public Material batchMat;
-        public Material batchCappedMat;
-        public Material brushGizmoMat;
-        public Material simpleMapMat;
-        public Material boundaryGizmoMat;
-        public Color[] brushColors;
-        public string gamePath;
-        public bool belowzero;
-        public string userBatchOutputPath;
+        [SerializeField] private Material batchMat;
+        [SerializeField] private Material batchCappedMat;
+        [SerializeField] private Material boundaryGizmoMat;
+        [SerializeField] private Color[] brushColors;
+        
+        private bool belowzero;
+        public static bool BelowZero { get { return instance.belowzero; } }
+        private string gamePath;
+        private string userBatchOutputPath;
 
         private GameObject[] boundaryPlanes;
+
+        public const int threadGroupSize = 8;
+        public const string sourcePathKey = "gamePath";
+        public const string outputPathKey = "outputPath";
+        public const string dataToUnmanaged = "StreamingAssets\\SNUnmanagedData";
+        public const string dataToAddressables = "StreamingAssets\\aa\\StandaloneWindows64";
 
         public string batchSourcePath {
             get {
@@ -25,7 +35,7 @@ namespace ReefEditor {
         }
         public string batchOutputPath {
             get {
-                return exportIntoGame ? batchSourcePath : userBatchOutputPath;
+                return userBatchOutputPath;
             }
         }
         public string gameDataFolder {
@@ -48,42 +58,34 @@ namespace ReefEditor {
                 return belowzero ? "blocktypeStringsBZ" : "blocktypeStrings";
             }
         }
-        
-        public const int threadGroupSize = 8;
 
-        public const string sourcePathKey = "gamePath";
-        public const string outputPathKey = "outputPath";
-        public const string dataToUnmanaged = "StreamingAssets\\SNUnmanagedData";
-        public const string dataToAddressables = "StreamingAssets\\aa\\StandaloneWindows64";
-        public bool exportIntoGame;
+        public event Action OnContentLoaded;
 
         private void Awake() {
             instance = this;
+            materialLoader = new SNContentLoader();
+            loadingManager = new LoadingManager();
+        }
+        private void Start() {
+            VoxelMetaspace.instance.OnRegionLoaded += RedrawBoundaryPlanes;
+        }
+        private void Update() {
+            loadingManager.UpdateLoading();
         }
 
         public static Color ColorFromType(int type) {
-            Random.InitState(type);
-            return new Color(Random.value, Random.value, Random.value);
+            UnityEngine.Random.InitState(type);
+            return new Color(UnityEngine.Random.value, UnityEngine.Random.value, UnityEngine.Random.value);
         }
 
-        public static Material GetBatchMat() {
+        public static Material GetDefaultTriplanarMaterial() {
             return instance.batchMat;
         }
-        public static void BakeSimpleMapMaterial() {
-            string filename = Path.Combine(instance.gamePath, instance.gameDataFolder, dataToUnmanaged, instance.gameExportWindow, "biomemap.png");
-
-            if (File.Exists(filename)) {
-                byte[] fileData = File.ReadAllBytes(filename);
-                Texture2D mapTexture = new Texture2D(2, 2);
-                if (ImageConversion.LoadImage(mapTexture, fileData, false)) {
-                    instance.simpleMapMat.mainTexture = mapTexture;
-                }
-            }
-        }
-        public static Material GetSimpleMapMat() {
-            return instance.simpleMapMat;
+        public static Material GetCappedTriplanarMaterial() {
+            return instance.batchCappedMat;
         }
 
+        public static string GetGamePath() => instance.gamePath;
         public static void SetGamePath(string path, bool save) {
             instance.gamePath = path;
             string[] splitdirs = path.Split('\\');
@@ -97,16 +99,6 @@ namespace ReefEditor {
 
             if (save)
                 SaveData.WriteKey(outputPathKey, path);
-        }
-
-        public static int LinearIndex(int x, int y, int z, int dim) {
-            return LinearIndex(x, y, z, Vector3Int.one * dim);
-        }
-        public static int LinearIndex(Vector3Int index, Vector3Int dim) {
-            return LinearIndex(index.x, index.y, index.z, dim);
-        }
-        public static int LinearIndex(int x, int y, int z, Vector3Int dim) {
-            return x + y * dim.x + z * dim.x * dim.y;
         }
 
         public static void RedrawBoundaryPlanes() {
@@ -156,13 +148,23 @@ namespace ReefEditor {
             planes[5].transform.localScale = new Vector3(worldCenter.x * .2f, 1, worldCenter.y * .2f);
         }
 
-        public static void UpdateBoundaries(Vector3 newPos, float radius) {
+        public static void UpdateBoundaryMaterial(Vector3 newPos, float radius) {
             instance.boundaryGizmoMat.SetVector("_CursorWorldPos", newPos);
             instance.boundaryGizmoMat.SetFloat("_BlendRadius", radius);
         }
 
         public static bool CheckIsGamePathValid() {
             return Directory.Exists(instance.batchSourcePath) && Directory.Exists(instance.resourcesSourcePath);
+        }
+
+        public static SNContentLoader GetContentLoader() => instance.materialLoader;
+        public static LoadingManager GetLoading() => instance.loadingManager;
+        public static Color[] GetBrushModesPalette() => instance.brushColors;
+
+        public static void InitiateMaterialsLoad() {
+            if (instance.OnContentLoaded != null)
+                instance.loadingManager.OnQueueEmpty += instance.OnContentLoaded;
+            instance.loadingManager.AddLoader(instance.materialLoader);
         }
     }
 }
