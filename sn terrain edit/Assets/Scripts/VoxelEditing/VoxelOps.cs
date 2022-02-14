@@ -5,10 +5,22 @@ using UnityEngine;
 namespace ReefEditor.VoxelEditing {
     public static class VoxelOps {
 
-        public static void VoxelAddSmooth(VoxelData voxelData, float distanceIncrement, byte newSolidVoxelType) {
+        public static void VoxelUnion(VoxelData voxelData, float distanceOther, byte newSolidVoxelType) {
             // encode density into addition-friendly format
-            float distanceValue = Mathf.Max(voxelData.signedDistance, distanceIncrement);
-            
+            float distanceValue = Mathf.Max(voxelData.signedDistance, distanceOther);
+
+            byte blocktype = 0;
+            if (distanceValue > 0) {
+                blocktype = newSolidVoxelType;
+            }
+
+            voxelData.blocktype = blocktype;
+            voxelData.signedDistance = distanceValue;
+        }
+        public static void VoxelSubtract(VoxelData voxelData, float distanceOther, byte newSolidVoxelType) {
+            // encode density into addition-friendly format
+            float distanceValue = Mathf.Min(voxelData.signedDistance, -distanceOther);
+
             byte blocktype = 0;
             if (distanceValue > 0) {
                 blocktype = newSolidVoxelType;
@@ -51,7 +63,8 @@ namespace ReefEditor.VoxelEditing {
             }
 
             float avgDistance = sum / count;
-            voxel.blocktype = (avgDistance > 0 && !solidBefore) ? newSolidType : voxel.blocktype;
+            if (avgDistance > 0 && !solidBefore) voxel.blocktype = newSolidType;
+            else if (avgDistance < 0 && solidBefore) voxel.blocktype = 0;
             voxel.signedDistance = avgDistance;
         }
 

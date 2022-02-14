@@ -56,7 +56,7 @@ namespace ReefEditor {
             }
         }
 
-        public Mesh GenerateMesh(byte[] densityGrid, byte[] typeGrid, Vector3Int resolution, Vector3 offset, out int[] blocktypes) {
+        public Mesh GenerateMesh(int[] densityGrid, int[] typeGrid, Vector3Int resolution, Vector3 offset, out int[] blocktypes) {
 
             // Setting data inside shader
 
@@ -64,13 +64,8 @@ namespace ReefEditor {
 
             int numThreads = Mathf.CeilToInt (resolution.x / (float) EditorManager.threadGroupSize);
 
-            if (typeGrid == null) typeGrid = new byte[resolution.x * resolution.y * resolution.z];
-
-            int[] densityIntGrid = densityGrid.Select(x => (int)x).ToArray();
-            int[] typeIntGrid = typeGrid.Select(x => (int)x).ToArray();
-
-            typeBuffer.SetData(typeIntGrid);
-            densityBuffer.SetData(densityIntGrid);
+            typeBuffer.SetData(typeGrid);
+            densityBuffer.SetData(densityGrid);
             faceBuffer.SetCounterValue (0);
 
             int kernel = 0;
@@ -99,7 +94,7 @@ namespace ReefEditor {
             return MakeMeshes(faces, resolution, offset, out blocktypes);
         } 
 
-        Mesh MakeMeshes(Face[] faces, Vector3Int resolution, Vector3 offset, out int[] blocktypes) {
+        public static Mesh MakeMeshes(Face[] faces, Vector3Int resolution, Vector3 offset, out int[] blocktypes) {
             
             // calculate vertex positions
             DualVertex[] verticesOfNodes = new DualVertex[resolution.x * resolution.y * resolution.z];
@@ -147,7 +142,7 @@ namespace ReefEditor {
             int submeshCount = blocktypes.Length;
             int nextStart = 0;
             
-            Mesh mesh = new Mesh();
+            var mesh = new Mesh();
             mesh.subMeshCount = submeshCount;
             mesh.vertices = vertices.ToArray();
             mesh.uv = vertexUVs.ToArray();
@@ -194,11 +189,11 @@ namespace ReefEditor {
             return mesh;
         }
 
-        private Vector2 BlockTypeToUV(int blockType) {
+        private static Vector2 BlockTypeToUV(int blockType) {
             return new Vector2((blockType % 16)/16f, (blockType / 16)/16f);
         }
 
-        struct Face : IComparable {
+        public struct Face : IComparable {
             public Vector3 a, b, c, d;
             public Vector3 surfaceIntersection;
             public int type;

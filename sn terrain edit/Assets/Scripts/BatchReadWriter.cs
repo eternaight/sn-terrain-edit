@@ -20,7 +20,7 @@ namespace ReefEditor {
 
             if (File.Exists(EditorManager.instance.batchSourcePath + batchname)) {
 
-                BinaryReader reader = new BinaryReader(File.Open(EditorManager.instance.batchSourcePath + batchname, FileMode.Open));
+                var reader = new BinaryReader(File.Open(EditorManager.instance.batchSourcePath + batchname, FileMode.Open));
                 reader.ReadInt32();
                 
                 // assemble a data array
@@ -114,7 +114,7 @@ namespace ReefEditor {
                 var originalNodes = ReadBatch(batchId);
 
                 // get changed octrees data
-                List<OctNode> batchChanges = new List<OctNode>();
+                var batchChanges = new List<OctNode>();
                 while (originalNodes.MoveNext() & modifiedNodes.MoveNext()) {
                     if (!modifiedNodes.Current.IdenticalTo(originalNodes.Current)) {
                         batchChanges.Add(modifiedNodes.Current);
@@ -131,7 +131,7 @@ namespace ReefEditor {
                     // num octrees to replace
                     writer.Write((byte)batchChanges.Count);
 
-                    foreach (OctNode change in batchChanges) {
+                    foreach (var change in batchChanges) {
                         byte index = change.GetXMajorLocalOctreeIndex();
                         if (index > 125) Debug.Log("found an octree index > 125");
                         writer.Write(index);

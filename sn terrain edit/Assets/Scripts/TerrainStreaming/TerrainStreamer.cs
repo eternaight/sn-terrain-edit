@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using Unity.Jobs;
 using UnityEngine;
 
 namespace ReefEditor.Streaming {
@@ -66,9 +67,8 @@ namespace ReefEditor.Streaming {
 
         public IEnumerator RestartStreaming() {
             while (queue.Count > 0) {
-                var item = queue.Dequeue();
-                meshes[item.octree.z][item.octree.y][item.octree.x].ReloadMesh(item.level, _biggestNode);
-                //Debug.Log("Reloaded mesh for " + (item.octree + _octreeMin));
+                itemNow = queue.Dequeue();
+                meshes[itemNow.octree.z][itemNow.octree.y][itemNow.octree.x].ReloadMesh(itemNow.level, _biggestNode);
                 yield return null;
             }
         }
@@ -87,7 +87,7 @@ namespace ReefEditor.Streaming {
         }
 
         public float GetTaskProgress() {
-            return (float)queue.Count / queueStartCount;
+            return 1 - (float)queue.Count / queueStartCount;
         }
 
         public string GetTaskDescription() {

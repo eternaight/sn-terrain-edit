@@ -68,7 +68,7 @@ namespace ReefEditor.VoxelEditing {
             }
             if (ctrl) {
                 // Complementary op
-                return (BrushMode)((int)mode + 1 - (int)(mode) % 2);
+                return (BrushMode)((int)mode % 2 == 1 ? (int)mode - 1 : (int)mode + 1); 
             }
             return mode;
         }
@@ -76,7 +76,6 @@ namespace ReefEditor.VoxelEditing {
         public void BrushAction(RaycastHit hit, Ray ray, bool shift, bool ctrl) {
             var activeMode = ApplyModeModifiers(userSelectedMode, shift, ctrl);
 
-            Debug.Log("mode is now " + activeMode);
             if (activeMode == BrushMode.Eyedropper) {
                 SetBrushBlocktype(VoxelMetaspace.instance.SampleBlocktype(hit.point, ray));
             } else {
@@ -145,10 +144,10 @@ namespace ReefEditor.VoxelEditing {
             public void BlendVoxel(VoxelData data, Vector3Int voxel) {
                 switch (mode) {
                     case BrushMode.Add:
-                        VoxelOps.VoxelAddSmooth(data, BrushDensity(voxel), selectedBlocktype);
+                        VoxelOps.VoxelUnion(data, BrushDensity(voxel), selectedBlocktype);
                         break;
                     case BrushMode.Remove:
-                        VoxelOps.VoxelAddSmooth(data, -BrushDensity(voxel), selectedBlocktype);
+                        VoxelOps.VoxelSubtract(data, BrushDensity(voxel), selectedBlocktype);
                         break;
                     case BrushMode.Paint:
                         VoxelOps.VoxelPaint(data, selectedBlocktype);
@@ -168,7 +167,6 @@ namespace ReefEditor.VoxelEditing {
                 var voxelPos = new Vector3Int((int)a.x, (int)a.y, (int)a.z);
                 var diagonal = Vector3Int.one * Mathf.CeilToInt(radius * 1.41f);
 
-                Debug.Log("Bounds are: " + ((voxelPos - diagonal) / 32) + " to " + ((voxelPos + diagonal) / 32));
                 return new Vector3Int[] {
                     voxelPos - diagonal,
                     voxelPos + diagonal
@@ -197,8 +195,7 @@ namespace ReefEditor.VoxelEditing {
             }
 
             private float BrushDensity(Vector3Int voxel) {
-                float signedDist = radius - Vector3.Distance(voxel, InVoxelSpace(position));
-                return signedDist;
+                return radius - Vector3.Distance(InVoxelSpace(position), voxel);
             }
 
             private bool ReadyForNextStroke() {

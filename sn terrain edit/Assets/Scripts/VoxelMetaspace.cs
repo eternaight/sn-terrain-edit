@@ -88,6 +88,12 @@ namespace ReefEditor {
             }
             return null;
         }
+        public OctNode GetOctnode(Vector3Int tree) {
+            if (OctreeExists(tree)) {
+                return rootNodes[GetLabel(tree)];
+            }
+            return null;
+        }
 
         public IEnumerable<int> OctreeLabelsOfBatch(Vector3Int batchId) {
             Vector3Int start = batchId * TREES_PER_BATCH_SIDE, end = (batchId + Vector3Int.one) * TREES_PER_BATCH_SIDE;
@@ -142,13 +148,17 @@ namespace ReefEditor {
             var voxelandPoint = transform.InverseTransformPoint(hitPoint);
             Vector3Int voxel = new Vector3Int((int)voxelandPoint.x, (int)voxelandPoint.y, (int)voxelandPoint.z);
             Vector3Int treeId = voxel / BIGGEST_NODE + _octreeMin;
-            if (!OctreeExists(treeId)) {
-                float newDistance = Vector3.Distance(hitPoint, cameraRay.origin) + .5f;
-                Vector3 newPoint = cameraRay.GetPoint(newDistance);
-                return SampleBlocktype(newPoint, cameraRay, retryCount + 1);
+
+            if (OctreeExists(treeId)) {
+                byte sample = rootNodes[GetLabel(treeId)].GetVoxel(voxel, 5).blocktype;
+                if (sample != 0) {
+                    return sample;
+                }
             }
 
-            return rootNodes[GetLabel(treeId)].GetVoxel(voxel, 5).blocktype;
+            float newDistance = Vector3.Distance(hitPoint, cameraRay.origin) + .5f;
+            Vector3 newPoint = cameraRay.GetPoint(newDistance);
+            return SampleBlocktype(newPoint, cameraRay, retryCount + 1);
         }
 
         public bool VoxelExists(int x, int y, int z) {
@@ -240,7 +250,6 @@ namespace ReefEditor {
                 loadingDone = true;
             }
         }
-
 
         private class MetaspaceWriter : ILoader {
 

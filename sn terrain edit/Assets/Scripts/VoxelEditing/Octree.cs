@@ -9,6 +9,9 @@ namespace ReefEditor.VoxelEditing {
         public int size;
         public VoxelData voxelData;
 
+        public int vertexIndex;
+        public readonly bool[] cornersSolidInfo;
+
         public bool HasChildren { get; private set; }
         public OctNode[] children;
 
@@ -17,6 +20,7 @@ namespace ReefEditor.VoxelEditing {
             this.position = position;
             this.size = size;
             voxelData = new VoxelData();
+            cornersSolidInfo = new bool[8];
         }
 
         public byte GetXMajorLocalOctreeIndex() {
@@ -76,7 +80,7 @@ namespace ReefEditor.VoxelEditing {
                 dataarray[myPos].childPosition = (ushort)newChildIndex;
 
                 for (int i = 0; i < 8; i++) {
-                    dataarray.Add(voxelData.Encode());
+                    dataarray.Add(children[i].voxelData.Encode());
                 }
                 for (int i = 0; i < 8; i++) {
                     children[i].WriteChildrenToArray(dataarray, (newChildIndex + i));
@@ -84,7 +88,6 @@ namespace ReefEditor.VoxelEditing {
             }
         }
 
-        // About octree heights: 0 = rootx32, 1x16, 2x8, 3x4, 4x2, 5x1. Total of 6 levels.
         public VoxelData GetVoxel(Vector3Int voxel, int height) {
             if (HasChildren && height > 0) {
                 for (int i = 0; i < 8; i++) {
@@ -113,12 +116,11 @@ namespace ReefEditor.VoxelEditing {
                 }
                 return true;
             }
-                
+
             if (!HasChildren) {
                 Subdivide();
             }
 
-            //if (IsMonotone()) StripChildren();
             bool childrenMonotone = true;
             bool childrenDataMonotone = true;
             var data0 = children[0].voxelData.Encode();
@@ -140,23 +142,34 @@ namespace ReefEditor.VoxelEditing {
             return childrenMonotone && childrenDataMonotone;
         }
 
-        private bool IsMonotone() {
-
-            if (!HasChildren) return false;
-
-            var data = children[0].voxelData.Encode();
-            for (int b = 1; b < 8; b++) {
-                var _data = children[b].voxelData.Encode();
-                if (data.type != _data.type) {
-                    return false;
-                }
-                if (data.density != _data.density) {
-                    return false;
-                }
+        // mesh methods
+        public void UpdateEdgesSolidity() {
+            for (int i = 0; i < 8; i++) {
+                var node = VoxelMetaspace.instance.GetOctnodeVoxel(position + cornerOffsets[i] * size, 5);
+                cornersSolidInfo[i] = !(node is null) && node.Solid;
             }
 
-            return true;
+            if (HasChildren) {
+                for (int i = 0; i < 8; i++) {
+                    children[i].UpdateEdgesSolidity();
+                }
+            }
         }
+        public void FillVertexList(List<Vector3> vertices) {
+            if (HasChildren) {
+                for (int i = 0; i < 8; i++) {
+                    children[i].FillVertexList(vertices);
+                }
+            } else {
+                vertexIndex = vertices.Count;
+                vertices.Add(GetDualVertexPosition());
+            }
+
+        }
+        private Vector3 GetDualVertexPosition() {
+            return VoxelMetaspace.instance.transform.TransformPoint(position + 0.5f * size * Vector3.one);
+        }
+
         private byte MostCommonChildType() {
             if (!HasChildren) return voxelData.blocktype;
 
@@ -165,7 +178,6 @@ namespace ReefEditor.VoxelEditing {
                     return children[b].voxelData.blocktype;
                 }
             }
-
             return 0;
         }
         private float AverageChildDistance() {
@@ -203,7 +215,7 @@ namespace ReefEditor.VoxelEditing {
         }
 
         // constants
-        private readonly Vector3Int[] cornerOffsets = {
+        private static readonly Vector3Int[] cornerOffsets = {
             new Vector3Int(0, 0, 0),
             new Vector3Int(0, 0, 1),
             new Vector3Int(0, 1, 0),

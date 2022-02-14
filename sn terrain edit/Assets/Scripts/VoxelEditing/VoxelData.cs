@@ -7,6 +7,12 @@ namespace ReefEditor.VoxelEditing {
         public byte blocktype;
         public float signedDistance;
 
+        public bool Solid {
+            get {
+                return signedDistance > 0;
+            }
+        }
+
         public VoxelData() {
             blocktype = 0;
             signedDistance = -2;
